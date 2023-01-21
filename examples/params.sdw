@@ -1,0 +1,3 @@
+fn void test(int arg int arg) {
+    return;
+}

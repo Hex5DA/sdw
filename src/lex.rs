@@ -25,6 +25,7 @@ pub enum Lexeme {
     OpenBrace,
     CloseBrace,
     Newline,
+    Delimiter,
 }
 
 impl Lexeme {
@@ -35,6 +36,7 @@ impl Lexeme {
             '(' => Lexeme::OpenParen,
             ')' => Lexeme::CloseParen,
             ';' => Lexeme::Newline,
+            ',' => Lexeme::Delimiter,
             _ => return Err("TODO: better error handling"),
         })
     }

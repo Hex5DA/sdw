@@ -47,11 +47,13 @@ impl ASTNode for Parameter {
 }
 
 macro_rules! consume {
-    ($variant:pat, $vec:expr) => {
+    ( $($variant:pat),+ in $vec:expr) => {
+        $(
         if let Some($variant) = $vec.pop_front() {
         } else {
-            todo!("Error handling code will go here :)");
+            todo!("Error handling code will go here :)\nThe remaining tokens were: {:?}", $vec);
         }
+        )+
     }
 }
 
@@ -77,17 +79,16 @@ impl ASTNode for Function {
             node.name = name;
         } else { todo!() }
 
-        consume!(Lexeme::OpenParen, tokens);        
-        while let Some(tk) = tokens.front() {
-            if matches!(tk, Lexeme::CloseParen) {
-                break;
-            }
+        consume!(Lexeme::OpenParen in tokens);        
+        while !tokens.is_empty() {
             node.params.push(Parameter::new(tokens));
+            match tokens.front() {
+                Some(Lexeme::Delimiter) => tokens.pop_front().unwrap(),
+                _ => break,
+            };
         }
 
-        // TODO: allow consume to take multiple variants
-        consume!(Lexeme::CloseParen, tokens);
-        consume!(Lexeme::OpenBrace, tokens);
+        consume!(Lexeme::CloseParen, Lexeme::OpenBrace in tokens);
         while let Some(tk) = tokens.pop_front() {
             if matches!(tk, Lexeme::CloseBrace) {
                 break;

@@ -1,10 +1,18 @@
+use clap::Parser;
 use std::fs;
 
 mod parse;
 mod lex;
 
+#[derive(Parser)]
+struct Args {
+    filepath: String,
+}
+
 fn main() {
-    let contents = fs::read_to_string("examples/params.sdw").unwrap(); 
+    let args = Args::parse();
+
+    let contents = fs::read_to_string(args.filepath).unwrap(); 
     let lexemes = lex::lex(contents);
     println!("Lexemes recieved: {:#?}", lexemes);
     parse::parse(lexemes);

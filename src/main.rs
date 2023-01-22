@@ -1,8 +1,8 @@
 use clap::Parser;
 use std::fs;
 
-mod parse;
 mod lex;
+mod parse;
 
 #[derive(Parser)]
 struct Args {
@@ -12,9 +12,8 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let contents = fs::read_to_string(args.filepath).unwrap(); 
+    let contents = fs::read_to_string(args.filepath).unwrap();
     let lexemes = lex::lex(contents);
     println!("Lexemes recieved: {:#?}", lexemes);
     parse::parse(lexemes);
 }
-

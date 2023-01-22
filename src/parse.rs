@@ -1,5 +1,27 @@
-use crate::lex::{Lexeme, Keyword};
+use crate::lex::{Keyword, Lexeme};
 use std::collections::VecDeque;
+
+macro_rules! consume {
+    ( $($variant:pat),+ in $vec:expr) => {
+        $( 
+        match $vec.pop_front() {
+            Some($variant) => {},
+            None => todo!("More error handling"),
+            _ => todo!("Error handling code will go here :)\nThe remaining tokens were: {:?}", $vec),
+        }
+        )+
+    };
+    ( $($variant:pat),+ in $vec:expr => $then:stmt) => {
+        $( 
+        match $vec.pop_front() {
+            Some($variant) => {$then},
+            None => todo!("More error handling"),
+            _ => todo!("Error handling code will go here :)\nThe remaining tokens were: {:?}", $vec),
+        }
+        )+
+    };
+}
+
 
 #[derive(Default, Debug)]
 enum PrimitiveType {
@@ -13,7 +35,10 @@ impl PrimitiveType {
         match from.as_str() {
             "void" => Self::Void,
             "int" => Self::Int,
-            _ => todo!("'Custom' variable types not implemented yet (given {})", from),
+            _ => todo!(
+                "'Custom' variable types not implemented yet (given {})",
+                from
+            ),
         }
     }
 }
@@ -34,26 +59,15 @@ impl ASTNode for Parameter {
     fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
         let mut node = Self::default();
 
-        if let Some(Lexeme::Idn(param_type)) = tokens.pop_front() {
+        consume!(Lexeme::Idn(param_type) in tokens => {
             node.param_type = PrimitiveType::from_str(param_type);
-        } else { todo!() }
-        
-        if let Some(Lexeme::Idn(name)) = tokens.pop_front() {
+        });
+
+        consume!(Lexeme::Idn(name) in tokens => {
             node.name = name;
-        } else { todo!() }
+        });
 
         node
-    }
-}
-
-macro_rules! consume {
-    ( $($variant:pat),+ in $vec:expr) => {
-        $(
-        if let Some($variant) = $vec.pop_front() {
-        } else {
-            todo!("Error handling code will go here :)\nThe remaining tokens were: {:?}", $vec);
-        }
-        )+
     }
 }
 
@@ -68,18 +82,18 @@ impl ASTNode for Function {
     fn codegen(&self) {}
     fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
         let _fnkw = tokens.pop_front();
-        debug_assert!(matches!(_fnkw, Some(Lexeme::Keyword(Keyword::Fn)))); 
+        debug_assert!(matches!(_fnkw, Some(Lexeme::Keyword(Keyword::Fn)))); // sanity check
         let mut node = Function::default();
 
-        if let Some(Lexeme::Idn(ret_type)) = tokens.pop_front() {
-            node.return_type = PrimitiveType::from_str(ret_type);
-        } else { todo!() }
+        consume!(Lexeme::Idn(ret_type) in tokens => {
+            node.return_type = PrimitiveType::from_str(ret_type)
+        });
 
-        if let Some(Lexeme::Idn(name)) = tokens.pop_front() {
+        consume!(Lexeme::Idn(name) in tokens => {
             node.name = name;
-        } else { todo!() }
+        });
 
-        consume!(Lexeme::OpenParen in tokens);        
+        consume!(Lexeme::OpenParen in tokens);
         while !tokens.is_empty() {
             node.params.push(Parameter::new(tokens));
             match tokens.front() {
@@ -89,13 +103,15 @@ impl ASTNode for Function {
         }
 
         consume!(Lexeme::CloseParen, Lexeme::OpenBrace in tokens);
-        while let Some(tk) = tokens.pop_front() {
-            if matches!(tk, Lexeme::CloseBrace) {
+        while !tokens.is_empty() {
+            // parse statements here; temporary pop
+            tokens.pop_front(); 
+            if let Some(Lexeme::CloseBrace) = tokens.front() {
+                tokens.pop_front();
                 break;
             }
-            // parse statements here..
         }
-
+        
         node
     }
 }
@@ -103,7 +119,6 @@ impl ASTNode for Function {
 // TODO: return the AST
 pub fn parse(lexemes: Vec<Lexeme>) {
     let mut tokens: VecDeque<Lexeme> = VecDeque::from(lexemes);
-    let node = Function::new(&mut tokens); 
+    let node = Function::new(&mut tokens);
     println!("{:#?}", node);
 }
-

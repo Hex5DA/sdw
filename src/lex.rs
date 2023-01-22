@@ -83,14 +83,18 @@ pub fn lex(inp: String) -> Vec<Lexeme> {
             if !buf.peek().is_ascii_alphabetic() {
                 let kw_idn = (&buf.inp[..(buf.idx as usize) + 1]).to_string();
                 buf.trim(buf.idx + 1);
-                let lexeme = if let Ok(kw) = Keyword::from_str(&kw_idn) { Lexeme::Keyword(kw) } else { Lexeme::Idn(kw_idn) };
+                let lexeme = if let Ok(kw) = Keyword::from_str(&kw_idn) {
+                    Lexeme::Keyword(kw)
+                } else {
+                    Lexeme::Idn(kw_idn)
+                };
                 lexemes.push(lexeme);
                 break;
             }
             buf.next();
         }
 
-         while buf.get().is_ascii_digit() {
+        while buf.get().is_ascii_digit() {
             if !buf.peek().is_ascii_digit() {
                 let numlit = (&buf.inp[..(buf.idx as usize) + 1]).to_string();
                 buf.trim(buf.idx + 1);

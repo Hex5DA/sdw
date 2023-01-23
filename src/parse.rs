@@ -1,9 +1,10 @@
+use crate::ir::ASTNodeIR;
 use crate::lex::{Keyword, Lexeme};
 use std::collections::VecDeque;
 
 macro_rules! consume {
     ( $($variant:pat),+ in $vec:expr) => {
-        $( 
+        $(
         match $vec.pop_front() {
             Some($variant) => {},
             None => todo!("More error handling"),
@@ -12,7 +13,7 @@ macro_rules! consume {
         )+
     };
     ( $($variant:pat),+ in $vec:expr => $then:stmt) => {
-        $( 
+        $(
         match $vec.pop_front() {
             Some($variant) => {$then},
             None => todo!("More error handling"),
@@ -22,9 +23,8 @@ macro_rules! consume {
     };
 }
 
-
 #[derive(Default, Debug)]
-enum PrimitiveType {
+pub enum PrimitiveType {
     #[default]
     Void,
     Int,
@@ -43,19 +43,19 @@ impl PrimitiveType {
     }
 }
 
-trait ASTNode {
-    fn codegen(&self);
-    fn new(tokens: &mut VecDeque<Lexeme>) -> Self;
+pub trait ASTNode: std::fmt::Debug {
+    fn new(tokens: &mut VecDeque<Lexeme>) -> Self
+    where
+        Self: Sized;
 }
 
 #[derive(Default, Debug)]
-struct Parameter {
-    name: String,
-    param_type: PrimitiveType,
+pub struct Parameter {
+    pub name: String,
+    pub param_type: PrimitiveType,
 }
 
 impl ASTNode for Parameter {
-    fn codegen(&self) {}
     fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
         let mut node = Self::default();
 
@@ -72,14 +72,14 @@ impl ASTNode for Parameter {
 }
 
 #[derive(Default, Debug)]
-struct Function {
-    return_type: PrimitiveType, // TODO: expand to handle other data types
-    name: String,
-    params: Vec<Parameter>,
+pub struct Function {
+    pub return_type: PrimitiveType, // TODO: expand to handle other data types
+    pub name: String,
+    pub params: Vec<Parameter>,
+    pub body: Block,
 }
 
 impl ASTNode for Function {
-    fn codegen(&self) {}
     fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
         let _fnkw = tokens.pop_front();
         debug_assert!(matches!(_fnkw, Some(Lexeme::Keyword(Keyword::Fn)))); // sanity check
@@ -94,31 +94,78 @@ impl ASTNode for Function {
         });
 
         consume!(Lexeme::OpenParen in tokens);
-        while !tokens.is_empty() {
-            node.params.push(Parameter::new(tokens));
-            match tokens.front() {
-                Some(Lexeme::Delimiter) => tokens.pop_front().unwrap(),
-                _ => break,
-            };
+        if !matches!(tokens.front(), Some(Lexeme::CloseParen)) {
+            // fixes crash with no args; ugly
+            while !tokens.is_empty() {
+                node.params.push(Parameter::new(tokens));
+                match tokens.front() {
+                    Some(Lexeme::Delimiter) => tokens.pop_front().unwrap(),
+                    _ => break,
+                };
+            }
         }
 
         consume!(Lexeme::CloseParen, Lexeme::OpenBrace in tokens);
-        while !tokens.is_empty() {
-            // parse statements here; temporary pop
-            tokens.pop_front(); 
-            if let Some(Lexeme::CloseBrace) = tokens.front() {
-                tokens.pop_front();
-                break;
-            }
-        }
-        
+        node.body = Block::new(tokens);
+        consume!(Lexeme::CloseBrace in tokens);
         node
     }
 }
 
+#[derive(Debug, Default)]
+pub struct Return {
+    pub return_value: Option<u64>, // make this generic
+    pub return_type: PrimitiveType,
+}
+
+impl ASTNode for Return {
+    fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
+        let mut node = Self::default();
+        consume!(Lexeme::Keyword(Keyword::Return) in tokens);
+        if let Some(Lexeme::NumLiteral(inner)) = tokens.front() {
+            node.return_value = Some(*inner);
+            tokens.pop_front();
+            node.return_type = PrimitiveType::Int;
+        } else {
+            node.return_type = PrimitiveType::Void;
+        }
+        consume!(Lexeme::Newline in tokens);
+        node
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct Block {
+    pub statements: Vec<Box<dyn ASTNodeIR>>,
+}
+
+impl ASTNode for Block {
+    fn new(tokens: &mut VecDeque<Lexeme>) -> Self {
+        let mut block = Self::default();
+
+        loop {
+            if let Some(tk) = tokens.front() {
+                let node: Box<dyn ASTNodeIR> = match tk {
+                    Lexeme::Keyword(kw) => match kw {
+                        Keyword::Return => Box::new(Return::new(tokens)),
+                        Keyword::Fn => Box::new(Function::new(tokens)),
+                    },
+                    Lexeme::NumLiteral(_) => continue,
+                    Lexeme::CloseBrace => break,
+                    _ => todo!(),
+                };
+                block.statements.push(node);
+            } else {
+                break;
+            }
+        }
+        block
+    }
+}
+
 // TODO: return the AST
-pub fn parse(lexemes: Vec<Lexeme>) {
+pub fn parse(lexemes: Vec<Lexeme>) -> Block {
     let mut tokens: VecDeque<Lexeme> = VecDeque::from(lexemes);
-    let node = Function::new(&mut tokens);
-    println!("{:#?}", node);
+    let root = Block::new(&mut tokens);
+    root
 }

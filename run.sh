@@ -5,7 +5,7 @@ asm() {
     llc ./a.ll -o ./a.s
     gcc ./a.s -o ./a
     ./a
-    rm ./a.ll ./a.s ./a ./a.out
+    rm ./a.ll ./a.s ./a
 }
 
 bc() {

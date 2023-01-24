@@ -20,7 +20,7 @@ impl ASTNodeIR for Function {
         // <type> <name>
         ow.append(
             format!(
-                "define {} @{} ({}) {{",
+                "define {} @{}({}) {{",
                 self.return_type.ir_type(),
                 self.name,
                 self.params
@@ -48,10 +48,10 @@ impl ASTNodeIR for Return {
     fn codegen(&self, ow: &mut OutputWrapper) {
         ow.append(
             format!(
-                "ret {} {}",
+                "ret {}{}",
                 self.return_type.ir_type(),
                 if let Some(inner) = self.return_value {
-                    inner.to_string()
+                    " ".to_string() + &inner.to_string()
                 } else {
                     "".to_string()
                 }
@@ -73,7 +73,7 @@ impl OutputWrapper {
     }
 
     pub fn append(&mut self, extra: String, idnt: usize) {
-        self.file.write(vec![b' '; idnt * 2].as_slice()).unwrap();
+        self.file.write(vec![b' '; idnt * 4].as_slice()).unwrap();
         self.file.write(extra.as_bytes()).map(|_| ()).unwrap();
         self.file.write(&[b'\n']).unwrap();
     }

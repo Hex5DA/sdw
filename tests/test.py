@@ -19,6 +19,15 @@ def error(err):
     print(f"error: {err}")
     sys.exit(-1)
 
+def findfile(files, ideal, ext):
+    if ideal not in files:
+        for file in files:
+            if file.rsplit(".")[1] == ext:
+                prog = file
+                return file 
+        error(f"no .sdw file found in {root}")
+    return ideal
+
 def block(name):
     count = succesful = 0
     for root, dirs, files in os.walk(name):
@@ -28,17 +37,11 @@ def block(name):
         absroot = os.path.abspath(root)
         tname = os.path.basename(absroot) 
         print(f"Running test '{tname}': ", end="")
-        prog = "test.sdw"
-        if "test.sdw" not in files:
-            for file in files:
-                if file.rsplit(".")[1] == "sdw":
-                    prog = file
-                    break
-            error(f"no .sdw file found in {root}")
+        prog = findfile(files, "test.sdw", ".sdw") 
 
         test = os.path.join(absroot, prog)
         result = os.path.join(absroot, "result.ll")
-        expected = os.path.join(absroot, "expected.ll")
+        expected = findfile(files, "expected.ll", ".ll")
         subprocess.run(["cargo",  "run", test, result], cwd="../", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
         os.remove(result)
         diff = subprocess.run(["diff", "--ignore-space", test, result], stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
@@ -56,6 +59,7 @@ def block(name):
     print(f"Block '{name}' finished; ({succesful}/{count})")
 
 def main():
+    os.chdir(os.path.abspath(os.path.dirname(__file__)))
     parser = argparse.ArgumentParser(prog = "ShadowLangTester", description = "Run automated tests for my compiler")
     parser.add_argument("blocks", default=["*"], nargs="?", action="append", help="You may specify '*' to run all blocks")
     args = parser.parse_args()
@@ -72,6 +76,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 

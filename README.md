@@ -18,6 +18,24 @@ Entry point is `fn int main()`.
 - Develop / utilise a testing framework
 - Variables
 
+## Development Strategy
+
+I am building this compiler following the methodology presenting in the paper
+["An Incremental Approach to Compiler Construction"](http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf)
+
+The development cycle goes something like as follows:
+
+1) Add a 'small' feature to your subset of your language
+2) Write tests to cover this feature
+3) Implement it in code
+4) Verify the code passes the tests
+5) Refactor the compiler (or, the bits you have modified)
+6) Repeat
+
+This process means at every point of compiler development, the compiler works, and builds succesful code.
+
+Testing is covered later in this document.
+
 ## Compile structure
 
 ### Lexical Analasis
@@ -54,6 +72,22 @@ You could also build to LLVM bitcode with:
 3) Interpet this bitcode file with `lli <bpath>`
 4) Check the exit code, if you want with `echo $?`
 
-I wrote a quick & shell script a quick shell script to do this for me,
+I wrote a quick & dirty shell script to do this for me,
 but there are no promises this'll work for you :sweat_smile:
+
+## Testing
+
+I wrote a simple testing framework in the form of a python script - `tests/test.py`.
+
+Tests are organised into blocks, which are folders residing in the `tests/` directory.
+These contain individual tests which are also folder; containing a `test.sdw` file and an `expected.ll` file.
+Each `.sdw` file is compiled to LLVM IR and compared against the given `expected.ll` file.
+The rest is just pretty printing :)
+
+No promises about portability; the script uses `diff` and some icky stuff to run `cargo`,
+so there's no guarantees :P
+
+I imagine it'd be pretty simple to modify, though
+
+`test.py` should be invoked with a list of the blocks to run, or standalone to run all blocks.
 

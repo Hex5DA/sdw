@@ -1,3 +1,5 @@
+use anyhow::{bail, Context, Result};
+
 #[derive(Debug)]
 pub enum Keyword {
     Fn,
@@ -5,13 +7,18 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    fn from_str(from: &String) -> Result<Keyword, &'static str> {
+    fn from_str(from: &String) -> Result<Self> {
         Ok(match from.as_str() {
             "fn" => Keyword::Fn,
             "return" => Keyword::Return,
-            _ => return Err("todo: proper errors"),
+            _ => bail!("Unknown keyword parsed, '{from}'"),
         })
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Literal {
+    Integer(i64), // TODO: Add support for negative numbers
 }
 
 #[allow(dead_code)]
@@ -19,7 +26,7 @@ impl Keyword {
 pub enum Lexeme {
     Keyword(Keyword),
     Idn(String),
-    NumLiteral(u64), // TODO: Add support for negative numbers
+    Literal(Literal),
     OpenParen,
     CloseParen,
     OpenBrace,
@@ -29,7 +36,7 @@ pub enum Lexeme {
 }
 
 impl Lexeme {
-    fn from_char(from: char) -> Result<Lexeme, &'static str> {
+    fn from_char(from: char) -> Result<Self> {
         Ok(match from {
             '{' => Lexeme::OpenBrace,
             '}' => Lexeme::CloseBrace,
@@ -37,7 +44,7 @@ impl Lexeme {
             ')' => Lexeme::CloseParen,
             ';' => Lexeme::Newline,
             ',' => Lexeme::Delimiter,
-            _ => return Err("TODO: better error handling"),
+            _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }
 }
@@ -48,15 +55,19 @@ struct LexBuffer {
 }
 
 impl LexBuffer {
-    fn at(&self, idx: i64) -> char {
-        self.inp.chars().nth(idx as usize).unwrap() // TODO: error handling
+    fn at(&self, idx: i64) -> Result<char> {
+        self.inp.chars().nth(idx as usize).context(format!(
+            "Index out of bounds ({}/{})",
+            idx,
+            self.inp.len()
+        ))
     }
 
-    fn get(&self) -> char {
+    fn get(&self) -> Result<char> {
         self.at(self.idx)
     }
 
-    fn peek(&self) -> char {
+    fn peek(&self) -> Result<char> {
         self.at(self.idx + 1)
     }
 
@@ -68,21 +79,26 @@ impl LexBuffer {
         self.idx += 1;
     }
 
-    fn trim(&mut self, to: i64) {
-        self.inp = self.inp.get((to as usize)..).unwrap().to_string();
+    fn trim(&mut self, to: i64) -> Result<()> {
+        self.inp = self
+            .inp
+            .get((to as usize)..)
+            .context(format!("Index out of bounds ({}/{})", to, self.inp.len()))?
+            .to_string();
         self.idx = 0;
+        Ok(())
     }
 }
 
-pub fn lex(inp: String) -> Vec<Lexeme> {
+pub fn lex(inp: String) -> Result<Vec<Lexeme>> {
     let mut buf = LexBuffer { inp, idx: 0 };
     let mut lexemes: Vec<Lexeme> = vec![];
 
     while !buf.empty() {
-        while buf.get().is_ascii_alphabetic() {
-            if !buf.peek().is_ascii_alphabetic() {
+        while buf.get()?.is_ascii_alphabetic() {
+            if !buf.peek()?.is_ascii_alphabetic() {
                 let kw_idn = (&buf.inp[..(buf.idx as usize) + 1]).to_string();
-                buf.trim(buf.idx + 1);
+                buf.trim(buf.idx + 1)?;
                 let lexeme = if let Ok(kw) = Keyword::from_str(&kw_idn) {
                     Lexeme::Keyword(kw)
                 } else {
@@ -94,24 +110,24 @@ pub fn lex(inp: String) -> Vec<Lexeme> {
             buf.next();
         }
 
-        while buf.get().is_ascii_digit() {
-            if !buf.peek().is_ascii_digit() {
+        while buf.get()?.is_ascii_digit() {
+            if !buf.peek()?.is_ascii_digit() {
                 let numlit = (&buf.inp[..(buf.idx as usize) + 1]).to_string();
-                buf.trim(buf.idx + 1);
-                let lexeme = Lexeme::NumLiteral(numlit.parse().unwrap());
+                buf.trim(buf.idx + 1)?;
+                let lexeme = Lexeme::Literal(Literal::Integer(numlit.parse().unwrap()));
                 lexemes.push(lexeme);
                 break;
             }
             buf.next();
         }
 
-        if let Ok(lexeme) = Lexeme::from_char(buf.get()) {
+        if let Ok(lexeme) = Lexeme::from_char(buf.get()?) {
             lexemes.push(lexeme);
         }
 
         buf.next();
-        buf.trim(buf.idx);
+        buf.trim(buf.idx)?;
     }
 
-    lexemes
+    Ok(lexemes)
 }

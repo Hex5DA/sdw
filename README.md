@@ -12,6 +12,13 @@ fn <ret type> <name>([<arg type> <arg>],?*) {
 
 Entry point is `fn int main()`.
 
+## TODO
+
+- Refactor `src/ir.rs` ( - I left it a mess :sweat_smile: )
+- Properly clean up `src/parse.rs`
+- Maybe look at improving error handling?
+- COntinue development
+
 ## Roadmap
 
 - Refactor of parsing (and maybe IR emitting)

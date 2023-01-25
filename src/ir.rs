@@ -1,3 +1,4 @@
+use super::lex::Literal;
 use super::parse::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -17,47 +18,67 @@ pub trait ASTNodeIR: ASTNode {
 
 impl ASTNodeIR for Function {
     fn codegen(&self, ow: &mut OutputWrapper) {
-        // <type> <name>
-        ow.append(
+        ow.appendln(
             format!(
                 "define {} @{}({}) {{",
                 self.return_type.ir_type(),
                 self.name,
                 self.params
                     .iter()
-                    .map(|pm| format!("{} %{}", pm.param_type.ir_type(), pm.name))
+                    .map(|pm| format!("{} %{}", pm.pm_type.ir_type(), pm.name))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
             0,
         );
         self.body.codegen(ow);
-        ow.append("}".to_string(), 0);
+        ow.appendln("}".to_string(), 0);
+    }
+}
+
+impl ASTNodeIR for Parameter {
+    fn codegen(&self, ow: &mut OutputWrapper) {
+        ow.append(format!("{} %{}, ", self.pm_type.ir_type(), self.name), 0);
     }
 }
 
 impl ASTNodeIR for Block {
     fn codegen(&self, ow: &mut OutputWrapper) {
-        for node in &self.statements {
+        for node in &self.stmts {
             node.codegen(ow);
         }
     }
 }
 
-impl ASTNodeIR for Return {
+impl ASTNodeIR for Root {
     fn codegen(&self, ow: &mut OutputWrapper) {
-        ow.append(
-            format!(
-                "ret {}{}",
-                self.return_type.ir_type(),
-                if let Some(inner) = self.return_value {
-                    " ".to_string() + &inner.to_string()
-                } else {
-                    "".to_string()
+        for node in &self.stmts {
+            node.codegen(ow);
+        }
+    }
+}
+
+impl ASTNodeIR for Statement {
+    fn codegen(&self, ow: &mut OutputWrapper) {
+        match &self.stmt_type {
+            StatementTypes::Return(expr) => {
+                if let ExpressionTypes::Literal(lit) = expr.expr_type {
+                    ow.appendln(
+                        format!(
+                            "ret {} {}",
+                            PrimitiveType::from_lit(lit).ir_type(),
+                            if let Some(Literal::Integer(val)) = lit {
+                                val.to_string()
+                            } else {
+                                "".to_string()
+                            },
+                        ),
+                        1,
+                    )
                 }
-            ),
-            1,
-        );
+            }
+            StatementTypes::Function(func) => func.codegen(ow),
+        }
     }
 }
 
@@ -75,6 +96,10 @@ impl OutputWrapper {
     pub fn append(&mut self, extra: String, idnt: usize) {
         self.file.write(vec![b' '; idnt * 4].as_slice()).unwrap();
         self.file.write(extra.as_bytes()).map(|_| ()).unwrap();
+    }
+
+    pub fn appendln(&mut self, extra: String, idnt: usize) {
+        self.append(extra, idnt);
         self.file.write(&[b'\n']).unwrap();
     }
 
@@ -83,6 +108,6 @@ impl OutputWrapper {
     }
 }
 
-pub fn gen_ir(ow: &mut OutputWrapper, ast: Block) {
+pub fn gen_ir(ow: &mut OutputWrapper, ast: Root) {
     ast.codegen(ow);
 }

@@ -1,5 +1,6 @@
 use clap::Parser;
 use std::fs;
+use std::process;
 
 mod ir;
 mod lex;
@@ -17,10 +18,15 @@ fn main() {
     let mut ow = ir::OutputWrapper::new(args.ofile).unwrap();
 
     let contents = fs::read_to_string(args.filepath).unwrap();
-    let lexemes = lex::lex(contents);
+    let lexemes = lex::lex(contents).unwrap_or_else(|err| {
+        eprintln!("An error occured whilst lexing the file:\n{}", err);
+        process::exit(1);
+    });
+
     println!("Lexemes recieved:\n{:#?}", lexemes);
-    let ast = parse::parse(lexemes);
+    let ast = parse::parse(lexemes).unwrap();
     println!("AST built, and recieved:\n{:#?}", ast);
+    println!("Generating IR..");
     ir::gen_ir(&mut ow, ast);
     ow.flush();
 }

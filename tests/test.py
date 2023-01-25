@@ -16,17 +16,19 @@ import sys
 import os
 
 def error(err):
-    print(f"error: {err}")
+    print("\n\n")
+    print("-" * 50)
+    print(f"Error: {err}")
+    print("-" * 50)
     sys.exit(-1)
 
-def findfile(files, ideal, ext):
+def findfile(root, files, ideal, ext):
     if ideal not in files:
         for file in files:
             if file.rsplit(".")[1] == ext:
-                prog = file
-                return file 
-        error(f"no .sdw file found in {root}")
-    return ideal
+                return os.path.join(root, ideal)
+        error(f"no {ext} file found in {root}")
+    return os.path.join(root, ideal)
 
 def block(name):
     count = succesful = 0
@@ -37,21 +39,27 @@ def block(name):
         absroot = os.path.abspath(root)
         tname = os.path.basename(absroot) 
         print(f"Running test '{tname}': ", end="")
-        prog = findfile(files, "test.sdw", ".sdw") 
+        prog = findfile(absroot, files, "test.sdw", ".sdw") 
 
         test = os.path.join(absroot, prog)
         result = os.path.join(absroot, "result.ll")
-        expected = findfile(files, "expected.ll", ".ll")
-        subprocess.run(["cargo",  "run", test, result], cwd="../", stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
+        expected = findfile(absroot, files, "expected.ll", ".ll")
+        run = subprocess.run(["cargo",  "run", test, result], cwd="../", capture_output=True) 
+        # https://doc.rust-lang.org/cargo/commands/cargo-run.html#exit-status
+        if run.returncode == 101:
+            error(f"the compiler did not return succesfully; output:\n\n{run.stderr.decode('utf-8')}")
+        
+        diff = subprocess.run(["diff", "-w", result, expected], capture_output=True)
         os.remove(result)
-        diff = subprocess.run(["diff", "--ignore-space", test, result], stdout = subprocess.DEVNULL, stderr = subprocess.STDOUT)
-        passed = diff.returncode >= 0
+        passed = diff.returncode == 0 
         print("passed!" if passed else "failed...")
         if not passed:
+            print()
             print("-" * 50)
             print("Unsuccesful test's diff log:")
-            print(diff.stdout)
+            print(diff.stdout.decode("utf-8"))
             print("-" * 50)
+            print()
         succesful += passed
         count += 1
 

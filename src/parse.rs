@@ -2,16 +2,6 @@ use crate::lex::{Keyword, Lexeme, Literal};
 use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;
 
-// Functionality needed:
-// - Function prototypes
-// - Document Root
-// - Basic statement and expression parsing
-// - Integer parsing, basic typing
-//
-// Blocks are lists of *statements* surrounded by braces
-// Statements are lines that end with a semicolon
-// Expressions are items that evauluate to a value
-
 #[derive(Default, Debug)]
 pub enum PrimitiveType {
     // is this bad? this feels bad
@@ -21,7 +11,7 @@ pub enum PrimitiveType {
 }
 
 impl PrimitiveType {
-    fn from_str(from: String) -> Result<Self> {
+    pub fn from_str(from: String) -> Result<Self> {
         Ok(match from.as_str() {
             "void" => Self::Void,
             "int" => Self::Int,
@@ -31,31 +21,20 @@ impl PrimitiveType {
             ),
         })
     }
-
-    pub fn from_lit(from: Option<Literal>) -> Self {
-        match from {
-            Some(Literal::Integer(_)) => PrimitiveType::Int,
-            None => PrimitiveType::Void,
-        }
-    }
 }
 
 macro_rules! consume {
-    ( $($variant:pat),+ in $vec:expr) => {
-        $(
-        match $vec.pop_front() {
-            Some($variant) => Ok::<(), anyhow::Error>(()),
-            None => bail!("Unexpected EOF"),
-            got @ _ => bail!("Expected {}, got {:?}", stringify!($variant), got),
-        }
-        )+
-    };
     ( $variant:pat in $vec:expr => $then:stmt) => {
         match $vec.pop_front() {
             Some($variant) => Ok::<(), anyhow::Error>({$then}),
             None => bail!("Unexpected EOF"),
             got @ _ => bail!("Expected {}, got {:?}", stringify!($variant), got),
          }
+    };
+    ( $($variant:pat),+ in $vec:expr) => {
+        $(
+        consume!($variant in $vec => {})
+        )+
     };
 }
 
@@ -66,81 +45,63 @@ pub trait ASTNode: std::fmt::Debug {
 }
 
 #[derive(Debug)]
-pub enum StatementTypes {
-    Return(Expression),
-    Function(Function), // If(Expression, Body)
-}
-
-impl Default for StatementTypes {
-    fn default() -> Self {
-        StatementTypes::Return(Expression::from_literal(Literal::Integer(0))) // TODO: this is bad, don't do this
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct Statement {
-    pub stmt_type: StatementTypes,
+pub enum Statement {
+    Return(Option<Expression>),
+    Function(Function),
+    // VariableAssignment(Assignment),
 }
 
 impl ASTNode for Statement {
     fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
-        let mut node = Self::default();
-
-        match lexemes.front().context("Unexpected EOF")? {
-            Lexeme::Keyword(Keyword::Fn) => {
-                node.stmt_type = StatementTypes::Function(Function::new(lexemes)?)
-            }
+        Ok(match lexemes.front().context("Unexpected EOF")? {
+            Lexeme::Keyword(Keyword::Fn) => Self::Function(Function::new(lexemes)?),
             Lexeme::Keyword(Keyword::Return) => {
                 consume!(Lexeme::Keyword(Keyword::Return) in lexemes)?;
-                println!("k/w: {:?}", lexemes);
-                let expr = Expression::new(lexemes)?;
-                node.stmt_type = StatementTypes::Return(expr);
-                println!("after: {:?}", lexemes);
+                let expr = if matches!(lexemes.front().context("Unexpected EOF")?, Lexeme::Newline) {
+                    None
+                } else {
+                    Some(Expression::new(lexemes)?)
+                };
                 consume!(Lexeme::Newline in lexemes)?;
-            }
+                Self::Return(expr)
+            },
             _ => todo!(),
-        }
-        Ok(node)
+        })
     }
 }
 
 #[derive(Debug)]
-pub enum ExpressionTypes {
-    Literal(Option<Literal>),
-    // FunctionCall
-    // Addition
-    // ect
-}
-
-impl Default for ExpressionTypes {
-    fn default() -> Self {
-        Self::Literal(Some(Literal::Integer(0))) // TODO: this is bad, don't do this
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct Expression {
-    pub expr_type: ExpressionTypes,
+pub enum Expression{
+    Literal(Literal),
 }
 
 impl Expression {
-    fn from_literal(lit: Literal) -> Self {
-        Self {
-            expr_type: ExpressionTypes::Literal(Some(lit)),
+    pub fn evaltype(&self) -> PrimitiveType {
+        match self {
+            Self::Literal(lit) => match lit {
+                Literal::Integer(_) => PrimitiveType::Int,
+            },
+        }
+    }
+    pub fn eval(&self) -> i64 {
+        match self {
+            Self::Literal(lit) => match lit {
+                Literal::Integer(inner) => *inner,
+            },
         }
     }
 }
 
 impl ASTNode for Expression {
     fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
-        let mut node = Self::default();
+        let node: Self;
         if let Lexeme::Literal(lit) = lexemes.front().context("Unexpected EOF")? {
-            node.expr_type = ExpressionTypes::Literal(Some(*lit));
+            node = Expression::Literal(*lit);
             lexemes.pop_front();
         } else {
-            node.expr_type = ExpressionTypes::Literal(None);
+            bail!("Only literal expressions are supported for now!");
         }
-        println!("expr: {:?}", lexemes);
+
         Ok(node)
     }
 }
@@ -237,7 +198,6 @@ impl ASTNode for Root {
         let mut node = Self::default();
 
         while !lexemes.is_empty() {
-            println!("{:?}", lexemes);
             if let Some(Lexeme::CloseBrace) = lexemes.front() {
                 break;
             }

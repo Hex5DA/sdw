@@ -4,6 +4,9 @@ use anyhow::{bail, Context, Result};
 pub enum Keyword {
     Fn,
     Return,
+    Variable,
+    Mutable,
+    Dynamic,
 }
 
 impl Keyword {
@@ -11,6 +14,9 @@ impl Keyword {
         Ok(match from.as_str() {
             "fn" => Keyword::Fn,
             "return" => Keyword::Return,
+            "var" => Keyword::Variable,
+            "mut" => Keyword::Mutable,
+            "dyn" => Keyword::Dynamic,
             _ => bail!("Unknown keyword parsed, '{from}'"),
         })
     }
@@ -33,6 +39,7 @@ pub enum Lexeme {
     CloseBrace,
     Newline,
     Delimiter,
+    Assignment,
 }
 
 impl Lexeme {
@@ -44,6 +51,7 @@ impl Lexeme {
             ')' => Lexeme::CloseParen,
             ';' => Lexeme::Newline,
             ',' => Lexeme::Delimiter,
+            '=' => Lexeme::Assignment,
             _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }

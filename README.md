@@ -12,6 +12,17 @@ fn <ret type> <name>([<arg type> <arg>],?*) {
 
 Entry point is `fn int main()`.
 
+Variable declration syntax:
+
+```
+<mod>* var <name> [as <type>]? = <expr>;
+```
+
+Modifiers:
+
+- `mut` -> Mutable
+- `dyn` -> Dynamic; type may change
+
 ## TODO
 
 - Refactor `src/ir.rs` ( - I left it a mess :sweat_smile: )

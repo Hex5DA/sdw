@@ -1,4 +1,3 @@
-use super::lex::Literal;
 use super::parse::*;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -52,26 +51,33 @@ impl ASTNodeIR for Root {
     }
 }
 
+// return
+//   - expression?
+//     - some = ->.type ->.value
+//     - none = void ""
+
 impl ASTNodeIR for Statement {
     fn codegen(&self, ow: &mut OutputWrapper) {
-        match &self.stmt_type {
-            StatementTypes::Return(expr) => {
-                if let ExpressionTypes::Literal(lit) = expr.expr_type {
-                    ow.appendln(
-                        format!(
-                            "ret {} {}",
-                            PrimitiveType::from_lit(lit).ir_type(),
-                            if let Some(Literal::Integer(val)) = lit {
-                                val.to_string()
-                            } else {
-                                "".to_string()
-                            },
-                        ),
-                        1,
-                    )
-                }
-            }
-            StatementTypes::Function(func) => func.codegen(ow),
+        match &self {
+            Statement::Return(inner) => {
+                ow.appendln(
+                    format!(
+                        "ret {} {}",
+                        if let Some(expr) = inner {
+                            expr.evaltype()
+                        } else {
+                            PrimitiveType::Void
+                        }.ir_type(),
+                        if let Some(expr) = inner {
+                            expr.eval().to_string()
+                        } else {
+                            "".to_string()
+                        },
+                    ),
+                    1,
+                )            
+            },
+            Statement::Function(func) => func.codegen(ow),
         }
     }
 }

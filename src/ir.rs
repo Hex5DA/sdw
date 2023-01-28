@@ -36,12 +36,6 @@ impl ASTNodeIR for Function {
     }
 }
 
-impl ASTNodeIR for Parameter {
-    fn codegen(&self, ow: &mut OutputWrapper) {
-        ow.append(format!("{} %{}, ", self.pm_type.ir_type(), self.name), 0);
-    }
-}
-
 impl ASTNodeIR for Block {
     fn codegen(&self, ow: &mut OutputWrapper) {
         for node in &self.stmts {

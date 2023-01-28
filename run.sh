@@ -21,18 +21,18 @@ else
     ext=""
 fi
 
-if [[ "$1" == "--asm" ]]; then
+if [[ "$1" == "asm" ]]; then
     eval "asm $2 $ext"
     echo $?
 fi
 
-if [[ "$1" == "--bc" ]]; then
+if [[ "$1" == "bc" ]]; then
     eval "bc $2 $ext"
     echo $?
 fi
 
 if [[ "$#" -le 1 ]]; then
-    echo "Syntax: run.sh --[asm | bc] [path] --quiet?"
+    echo "Syntax: run.sh [asm | bc] [path] --quiet?"
     echo "Options:"
     echo "  asm   -> SDWL will compile the LLVM IR to assembly and then execute it"
     echo "  bc    -> SDWL will compile the LLVM IR to LLVM bitcode and interpret it"

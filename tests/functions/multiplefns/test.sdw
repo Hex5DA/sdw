@@ -1,0 +1,12 @@
+fn void first() {
+    return;
+}
+
+fn int second() {
+    return 3;
+}
+
+fn int third(int a, int b, int c, int d) {
+    return 0;
+}
+

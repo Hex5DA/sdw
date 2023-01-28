@@ -69,9 +69,9 @@ def block(name):
 def main():
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
     parser = argparse.ArgumentParser(prog = "ShadowLangTester", description = "Run automated tests for my compiler")
-    parser.add_argument("blocks", default=["*"], nargs="?", action="append", help="You may specify '*' to run all blocks")
+    parser.add_argument("blocks", default=None, nargs="?", action="append", help="Omit this argument to run all blocks.")
     args = parser.parse_args()
-    if args.blocks == ["*", ["*"]]:
+    if args.blocks == [None]:
         args.blocks = [dir for dir in os.listdir(".") if os.path.isdir(dir)]
 
     for name in args.blocks:

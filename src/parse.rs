@@ -1,8 +1,16 @@
-use crate::lex::{Keyword, Lexeme, Literal};
+use crate::lex::{Keyword, Lexeme, Literal, Modifier};
 use anyhow::{bail, Context, Result};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
-#[derive(Default, Debug)]
+pub struct Var {
+    pub name: String,
+    pub vtype: Option<PrimitiveType>,
+    pub value: Option<Expression>,
+}
+
+pub type SymbolTable = HashMap<String, Var>;
+
+#[derive(Default, Debug, Copy, Clone)]
 pub enum PrimitiveType {
     // is this bad? this feels bad
     #[default]
@@ -39,7 +47,7 @@ macro_rules! consume {
 }
 
 pub trait ASTNode: std::fmt::Debug {
-    fn new(tokens: &mut VecDeque<Lexeme>) -> Result<Self>
+    fn new(tokens: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self>
     where
         Self: Sized;
 }
@@ -48,61 +56,81 @@ pub trait ASTNode: std::fmt::Debug {
 pub enum Statement {
     Return(Option<Expression>),
     Function(Function),
-    // VariableAssignment(Assignment),
+    VariableAssignment(Assignment),
 }
 
 impl ASTNode for Statement {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         Ok(match lexemes.front().context("Unexpected EOF")? {
-            Lexeme::Keyword(Keyword::Fn) => Self::Function(Function::new(lexemes)?),
+            Lexeme::Keyword(Keyword::Fn) => Self::Function(Function::new(lexemes, symtab)?),
             Lexeme::Keyword(Keyword::Return) => {
                 consume!(Lexeme::Keyword(Keyword::Return) in lexemes)?;
-                let expr = if matches!(lexemes.front().context("Unexpected EOF")?, Lexeme::Newline) {
+                let expr = if matches!(lexemes.front().context("Unexpected EOF")?, Lexeme::Newline)
+                {
                     None
                 } else {
-                    Some(Expression::new(lexemes)?)
+                    Some(Expression::new(lexemes, symtab)?)
                 };
                 consume!(Lexeme::Newline in lexemes)?;
                 Self::Return(expr)
-            },
-            _ => todo!(),
+            }
+            Lexeme::Keyword(Keyword::Variable) | Lexeme::Keyword(Keyword::Modifier(_)) => {
+                Self::VariableAssignment(Assignment::new(lexemes, symtab)?)
+            }
+            unexpected @ _ => todo!(
+                "token encountered: {:?}; all tokens\n{:?}",
+                unexpected,
+                lexemes
+            ),
         })
     }
 }
 
-#[derive(Debug)]
-pub enum Expression{
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Variable(String),
     Literal(Literal),
 }
 
 impl Expression {
-    pub fn evaltype(&self) -> PrimitiveType {
-        match self {
+    pub fn evaltype(&self, symtab: &mut SymbolTable) -> Result<PrimitiveType> {
+        Ok(match self {
             Self::Literal(lit) => match lit {
                 Literal::Integer(_) => PrimitiveType::Int,
             },
-        }
+            Self::Variable(nm) => {
+                let var = symtab
+                    .get(nm)
+                    .context(format!("Variable {nm} not found in scope"))?;
+                var.vtype
+                    .context(format!("The variable {nm} has no strictly defined type"))?
+            }
+        })
     }
-    pub fn eval(&self) -> i64 {
-        match self {
+
+    pub fn eval(&self, _symtab: &mut SymbolTable) -> Result<i64> {
+        Ok(match self {
             Self::Literal(lit) => match lit {
                 Literal::Integer(inner) => *inner,
             },
-        }
+            Self::Variable(_) => {
+                // vv constant, folding, want reference passing
+                // let var = symtab.get(nm).context(format!("Variable {nm} not found in scope"))?;
+                // let val = var.value.clone().context(format!("The variable {nm} has no defined value"))?;
+                // val.eval(symtab)?
+                unreachable!()
+            }
+        })
     }
 }
 
 impl ASTNode for Expression {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
-        let node: Self;
-        if let Lexeme::Literal(lit) = lexemes.front().context("Unexpected EOF")? {
-            node = Expression::Literal(*lit);
-            lexemes.pop_front();
-        } else {
-            bail!("Only literal expressions are supported for now!");
-        }
-
-        Ok(node)
+    fn new(lexemes: &mut VecDeque<Lexeme>, _symtab: &mut SymbolTable) -> Result<Self> {
+        Ok(match lexemes.pop_front().context("Unexpected EOF")? {
+            Lexeme::Literal(lit) => Self::Literal(lit),
+            Lexeme::Idn(nm) => Self::Variable(nm),
+            _ => bail!("Only literal expressions are supported for now!"),
+        })
     }
 }
 
@@ -113,7 +141,7 @@ pub struct Parameter {
 }
 
 impl ASTNode for Parameter {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, _symtab: &mut SymbolTable) -> Result<Self> {
         let mut node = Self::default();
 
         consume!(Lexeme::Idn(pmt) in lexemes => {
@@ -136,7 +164,7 @@ pub struct Function {
 }
 
 impl ASTNode for Function {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         let mut node = Function::default();
 
         consume!(Lexeme::Keyword(Keyword::Fn) in lexemes)?;
@@ -150,7 +178,7 @@ impl ASTNode for Function {
 
         if !matches!(lexemes.front(), Some(Lexeme::CloseParen)) {
             while !lexemes.is_empty() {
-                node.params.push(Parameter::new(lexemes)?);
+                node.params.push(Parameter::new(lexemes, symtab)?);
                 match lexemes.front() {
                     Some(Lexeme::Delimiter) => {
                         consume!(Lexeme::Delimiter in lexemes)?;
@@ -161,7 +189,66 @@ impl ASTNode for Function {
         }
 
         consume!(Lexeme::CloseParen in lexemes)?;
-        node.body = Block::new(lexemes)?;
+        node.body = Block::new(lexemes, symtab)?;
+        Ok(node)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Assignment {
+    pub modifiers: Vec<Modifier>,
+    pub name: String,
+    pub value: Option<Expression>,
+    pub vtype: Option<PrimitiveType>,
+}
+
+impl ASTNode for Assignment {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
+        let mut node = Self::default();
+        while let Lexeme::Keyword(Keyword::Modifier(modi)) =
+            lexemes.pop_front().context("Unexpcted EOF")?
+        {
+            node.modifiers.push(modi);
+        }
+
+        consume!(Lexeme::Idn(nm) in lexemes => {
+            node.name = nm;
+        })?;
+
+        if let Lexeme::Keyword(Keyword::Coercion) = lexemes.front().context("Unexpected EOF")? {
+            consume!(Lexeme::Keyword(Keyword::Coercion) in lexemes)?;
+            consume!(Lexeme::Idn(ty) in lexemes => {
+                node.vtype = Some(PrimitiveType::from_str(ty)?);
+            })?;
+        }
+
+        node.value = match lexemes.pop_front().context("Unexpected EOF")? {
+            Lexeme::Newline => None,
+            Lexeme::Assignment => {
+                let expr = Expression::new(lexemes, symtab)?;
+                consume!(Lexeme::Newline in lexemes)?;
+                Some(expr)
+            }
+            _ => bail!("Expected variable intialiser or newline."),
+        };
+
+        // TODO: support implicit declarations throughvariable usage
+        if let None = node.value {
+            if let None = node.vtype {
+                // no chaining if lets yet?
+                bail!("Either a specified type or initaliser must be present.");
+            }
+        }
+
+        symtab.insert(
+            node.name.clone(),
+            Var {
+                name: node.name.clone(),
+                vtype: node.vtype.clone(),
+                value: node.value.clone(),
+            },
+        );
+
         Ok(node)
     }
 }
@@ -172,7 +259,7 @@ pub struct Block {
 }
 
 impl ASTNode for Block {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         let mut node = Self::default();
 
         consume!(Lexeme::OpenBrace in lexemes)?;
@@ -180,7 +267,7 @@ impl ASTNode for Block {
             if let Some(Lexeme::CloseBrace) = lexemes.front() {
                 break;
             }
-            node.stmts.push(Statement::new(lexemes)?);
+            node.stmts.push(Statement::new(lexemes, symtab)?);
         }
         consume!(Lexeme::CloseBrace in lexemes)?;
 
@@ -194,20 +281,20 @@ pub struct Root {
 }
 
 impl ASTNode for Root {
-    fn new(lexemes: &mut VecDeque<Lexeme>) -> Result<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         let mut node = Self::default();
 
         while !lexemes.is_empty() {
             if let Some(Lexeme::CloseBrace) = lexemes.front() {
                 break;
             }
-            node.stmts.push(Statement::new(lexemes)?);
+            node.stmts.push(Statement::new(lexemes, symtab)?);
         }
 
         Ok(node)
     }
 }
 
-pub fn parse(lexemes: Vec<Lexeme>) -> Result<Root> {
-    Root::new(&mut VecDeque::from(lexemes))
+pub fn parse(lexemes: Vec<Lexeme>, symtab: &mut SymbolTable) -> Result<Root> {
+    Root::new(&mut VecDeque::from(lexemes), symtab)
 }

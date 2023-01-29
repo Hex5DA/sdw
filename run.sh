@@ -5,14 +5,18 @@ asm() {
     llc ./a.ll -o ./a.s
     gcc ./a.s -o ./a
     ./a
+    exitcode=$?
     rm ./a.ll ./a.s ./a
+    return $exitcode
 }
 
 bc() {
     cargo run -- $1 ./a.ll
     llvm-as ./a.ll -o ./a.bc
     lli ./a.bc
+    exitcode=$?
     rm ./a.ll ./a.bc
+    return $exitcode
 }
 
 if [[ "$3" == "--quiet" ]]; then

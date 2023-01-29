@@ -1,12 +1,18 @@
 use anyhow::{bail, Context, Result};
 
 #[derive(Debug)]
+pub enum Modifier {
+    Mutable,
+    Dynamic,
+}
+
+#[derive(Debug)]
 pub enum Keyword {
     Fn,
     Return,
     Variable,
-    Mutable,
-    Dynamic,
+    Modifier(Modifier),
+    Coercion,
 }
 
 impl Keyword {
@@ -15,8 +21,9 @@ impl Keyword {
             "fn" => Keyword::Fn,
             "return" => Keyword::Return,
             "var" => Keyword::Variable,
-            "mut" => Keyword::Mutable,
-            "dyn" => Keyword::Dynamic,
+            "as" => Keyword::Coercion,
+            "mut" => Keyword::Modifier(Modifier::Mutable),
+            "dyn" => Keyword::Modifier(Modifier::Dynamic),
             _ => bail!("Unknown keyword parsed, '{from}'"),
         })
     }

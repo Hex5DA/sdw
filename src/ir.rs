@@ -12,11 +12,11 @@ impl PrimitiveType {
 }
 
 pub trait ASTNodeIR: ASTNode {
-    fn codegen(&self, ow: &mut OutputWrapper);
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable);
 }
 
 impl ASTNodeIR for Function {
-    fn codegen(&self, ow: &mut OutputWrapper) {
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
         ow.appendln(
             format!(
                 "define {} @{}({}) {{",
@@ -30,55 +30,98 @@ impl ASTNodeIR for Function {
             ),
             0,
         );
-        self.body.codegen(ow);
+        self.body.codegen(ow, symtab);
         ow.appendln("}".to_string(), 0);
     }
 }
 
+impl ASTNodeIR for Assignment {
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        let ty = if let None = self.vtype {
+            // None first because borrow checker :/
+            self.value.as_ref().unwrap().evaltype(symtab).unwrap()
+        } else {
+            self.vtype.unwrap()
+        };
+
+        ow.appendln(format!("%{} = alloca {}", self.name, ty.ir_type()), 1);
+        if let Some(val) = &self.value {
+            ow.appendln(
+                format!(
+                    "store {} {}, ptr %{}",
+                    ty.ir_type(),
+                    val.eval(symtab).unwrap(),
+                    self.name
+                ),
+                1,
+            );
+        }
+    }
+}
+
 impl ASTNodeIR for Block {
-    fn codegen(&self, ow: &mut OutputWrapper) {
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
         for node in &self.stmts {
-            node.codegen(ow);
+            node.codegen(ow, symtab);
         }
     }
 }
 
 impl ASTNodeIR for Root {
-    fn codegen(&self, ow: &mut OutputWrapper) {
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
         for node in &self.stmts {
-            node.codegen(ow);
+            node.codegen(ow, symtab);
         }
     }
 }
 
-// return
-//   - expression?
-//     - some = ->.type ->.value
-//     - none = void ""
-
 impl ASTNodeIR for Statement {
-    fn codegen(&self, ow: &mut OutputWrapper) {
-        match &self {
-            Statement::Return(inner) => {
-                ow.appendln(
-                    format!(
-                        "ret {} {}",
-                        if let Some(expr) = inner {
-                            expr.evaltype()
-                        } else {
-                            PrimitiveType::Void
-                        }.ir_type(),
-                        if let Some(expr) = inner {
-                            expr.eval().to_string()
-                        } else {
-                            "".to_string()
-                        },
-                    ),
-                    1,
-                )            
-            },
-            Statement::Function(func) => func.codegen(ow),
-        }
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        let stmt = match self {
+            Statement::Return(inner) => format!(
+                "ret {} {}",
+                if let Some(expr) = inner {
+                    expr.evaltype(symtab).unwrap()
+                } else {
+                    PrimitiveType::Void
+                }
+                .ir_type(),
+                if let Some(expr) = inner {
+                    match expr {
+                        Expression::Variable(nm) => {
+                            let var = symtab
+                                .get(nm)
+                                .expect(format!("Variable {nm} not found in scope").as_str());
+
+                            let intname = format!("{}deref", var.name.clone());
+                            ow.appendln(
+                                format!(
+                                    "%{} = load {}, ptr %{}",
+                                    intname,
+                                    var.vtype.unwrap().ir_type(),
+                                    var.name.clone()
+                                ),
+                                1,
+                            );
+                            format!("%{}", intname)
+                        }
+                        Expression::Literal(_) => expr.eval(symtab).unwrap().to_string(),
+                    }
+                } else {
+                    "".to_string()
+                },
+            ),
+
+            Statement::Function(func) => {
+                func.codegen(ow, symtab);
+                "".to_string()
+            }
+            Statement::VariableAssignment(ass /* :smirk: */) => {
+                ass.codegen(ow, symtab);
+                "".to_string()
+            }
+        };
+        ow.appendln(stmt, 1);
     }
 }
 
@@ -108,6 +151,6 @@ impl OutputWrapper {
     }
 }
 
-pub fn gen_ir(ow: &mut OutputWrapper, ast: Root) {
-    ast.codegen(ow);
+pub fn gen_ir(ow: &mut OutputWrapper, symtab: &mut SymbolTable, ast: Root) {
+    ast.codegen(ow, symtab);
 }

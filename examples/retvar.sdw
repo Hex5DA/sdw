@@ -1,0 +1,4 @@
+fn int main() {
+    var returnval as int = 5;
+    return returnval;
+}

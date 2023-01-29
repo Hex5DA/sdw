@@ -1,7 +1,4 @@
-int main() {
-    var first = 10;
-    var second as int = 5;
-    mut third = 9;
-    dyn fourth;
-    mut dyn = 100;
+fn int main() {
+    var hello = 10;
+    return 0;
 }

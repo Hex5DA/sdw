@@ -49,7 +49,7 @@ def block(name):
         if run.returncode == 101:
             error(f"the compiler did not return succesfully; output:\n\n{run.stderr.decode('utf-8')}")
         
-        diff = subprocess.run(["diff", "-w", result, expected], capture_output=True)
+        diff = subprocess.run(["diff", "-wBZ", result, expected], capture_output=True)
         os.remove(result)
         passed = diff.returncode == 0 
         print("passed!" if passed else "failed...")

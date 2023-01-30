@@ -75,6 +75,30 @@ impl ASTNodeIR for Root {
     }
 }
 
+impl ASTNodeIR for Expression {
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        match self {
+            Self::Variable(nm) => {
+                let var = symtab
+                    .get(nm)
+                    .expect(format!("Variable {nm} not found in scope").as_str());
+
+                let intname = format!("{}deref", var.name.clone());
+                ow.appendln(
+                    format!(
+                        "%{} = load {}, ptr %{}",
+                        intname,
+                        self.evaltype(symtab).unwrap().ir_type(),
+                        nm.clone()
+                    ),
+                    1,
+                );
+            }
+            Self::Literal(_) => {}
+        }
+    }
+}
+
 impl ASTNodeIR for Statement {
     fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
         let stmt = match self {
@@ -86,29 +110,15 @@ impl ASTNodeIR for Statement {
                     PrimitiveType::Void
                 }
                 .ir_type(),
-                if let Some(expr) = inner {
-                    match expr {
+                match inner {
+                    Some(expr) => match expr {
                         Expression::Variable(nm) => {
-                            let var = symtab
-                                .get(nm)
-                                .expect(format!("Variable {nm} not found in scope").as_str());
-
-                            let intname = format!("{}deref", var.name.clone());
-                            ow.appendln(
-                                format!(
-                                    "%{} = load {}, ptr %{}",
-                                    intname,
-                                    var.vtype.unwrap().ir_type(),
-                                    var.name.clone()
-                                ),
-                                1,
-                            );
-                            format!("%{}", intname)
+                            expr.codegen(ow, symtab);
+                            format!("%{}deref", nm)
                         }
                         Expression::Literal(_) => expr.eval(symtab).unwrap().to_string(),
-                    }
-                } else {
-                    "".to_string()
+                    },
+                    None => "".to_string(),
                 },
             ),
 
@@ -116,7 +126,7 @@ impl ASTNodeIR for Statement {
                 func.codegen(ow, symtab);
                 "".to_string()
             }
-            Statement::VariableAssignment(ass /* :smirk: */) => {
+            Statement::VariableDeclaration(ass /* :smirk: */) => {
                 ass.codegen(ow, symtab);
                 "".to_string()
             }

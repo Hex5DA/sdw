@@ -56,7 +56,7 @@ pub trait ASTNode: std::fmt::Debug {
 pub enum Statement {
     Return(Option<Expression>),
     Function(Function),
-    VariableAssignment(Assignment),
+    VariableDeclaration(Assignment),
 }
 
 impl ASTNode for Statement {
@@ -75,7 +75,7 @@ impl ASTNode for Statement {
                 Self::Return(expr)
             }
             Lexeme::Keyword(Keyword::Variable) | Lexeme::Keyword(Keyword::Modifier(_)) => {
-                Self::VariableAssignment(Assignment::new(lexemes, symtab)?)
+                Self::VariableDeclaration(Assignment::new(lexemes, symtab)?)
             }
             unexpected @ _ => todo!(
                 "token encountered: {:?}; all tokens\n{:?}",
@@ -102,8 +102,17 @@ impl Expression {
                 let var = symtab
                     .get(nm)
                     .context(format!("Variable {nm} not found in scope"))?;
-                var.vtype
-                    .context(format!("The variable {nm} has no strictly defined type"))?
+                // var.vtype
+                //    .context(format!("The variable {nm} has no strictly defined type"))?;
+                if let Some(strict) = var.vtype {
+                    strict
+                } else {
+                    var.value
+                        .clone() // ew
+                        .unwrap()
+                        .evaltype(symtab)
+                        .context("The variable's value was another variable, not yet supported")?
+                }
             }
         })
     }

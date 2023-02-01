@@ -18,23 +18,36 @@ Variable declration syntax:
 <mod>* var <name> [as <type>]? = <expr>;
 ```
 
+If the type is specified, `<expr>` should be coerced into `<type>`.
+
 Modifiers:
 
 - `mut` -> Mutable
-- `dyn` -> Dynamic; type may change
+- `dyn` -> Dynamic
 
-## TODO
+Variables:
 
-- Refactor `src/ir.rs` ( - I left it a mess :sweat_smile: )
-- Properly clean up `src/parse.rs`
-- Maybe look at improving error handling?
-- COntinue development
+Variables have lifetimes, lasting from creation to deletion.
+
+*Dynamic* variables, declared with the *dyn* keyword, can have 'multiple' lifetimes.
+Ie. only one lifetime at a time, but this lifetime may change, and the parser / semantic
+analyser will determine that this, and give it 'multiple' lifetimes.
+
+Lifetimes declare a variable's type, name and modifiers.
+
+Variables are immutable by default, & their value can't be changed.
+Mutable variables may be declared with the *mut* keyword.
+Their value may change but not their lifetime.
 
 ## Roadmap
 
-- Refactor of parsing (and maybe IR emitting)
-- Develop / utilise a testing framework
-- Variables
+- More tests for variables
+- Build up the symbol table
+- Improve the way variable expressions are handled, and allow for nested variables
+- AST pretty printing (export to flowchart? )
+- Operations on variables - start with mathematical operations
+- Expand primitive data types (char, string, bool, more int type, ect.. )
+- Yet more refactoring and cleaning up (as always :sweat_smile: )
 
 ## Development Strategy
 
@@ -56,26 +69,33 @@ Testing is covered later in this document.
 
 ## Compile structure
 
-### Lexical Analasis
+### Lexical Analysis
 
 Converting the input stream of characters (file content) into a series of lexemes that can be parsed
 
-### Structural Analasis
+### Structural Analysis
 
 Taking a stream of lexemes and parsing them into an AST.
 This also adds metadata to different constructs - like attributing a return type to a function, ect.
 
-### Semantic Analasis
+### Semantic Analysis
 
 Taking the AST and checking / defining its meaning. 
 
-### Translational Analasis
+### Optimisational Analysis
+
+Taking the semantically-associated AST and turning performing DCE, constant folding ect to
+do some rough-optimisation before handing over to LLVM.
+
+### Translational Analysis
 
 Translating the AST into [LLVM] IR
 
 After this, the IR can be built to ASM [and compiled] or built to LLVM bitcode and interpreted.
 
 ## Executing
+
+TODO: Add notes on how [optimise LLVM IR / BC](https://llvm.org/docs/CommandGuide/opt.html)
 
 1) Run the compiler with `cargo run <path> <opath>` (run `cargo run --help` for details)
 2) Generate an assembly file with `llc <opath> -o <lpath>`

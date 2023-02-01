@@ -1,7 +1,7 @@
-use anyhow::{bail, Context, Result};
-use crate::lex::{Lexeme, Keyword, Modifier};
+use super::{expression::Expression, ir::OutputWrapper, ASTNode, PrimitiveType, SymbolTable, Var};
 use crate::consume;
-use super::{Var, ASTNode, PrimitiveType, expression::Expression, SymbolTable, ir::OutputWrapper};
+use crate::lex::{Keyword, Lexeme, Modifier};
+use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;
 
 #[derive(Debug, Default)]
@@ -43,18 +43,15 @@ impl ASTNode for Assignment {
         };
 
         // TODO: support implicit declarations throughvariable usage
-        if let None = node.value {
-            if let None = node.vtype {
-                // no chaining if lets yet?
-                bail!("Either a specified type or initaliser must be present.");
-            }
+        if node.value.is_none() && node.vtype.is_none() {
+            bail!("Either a specified type or initaliser must be present.");
         }
 
         symtab.insert(
             node.name.clone(),
             Var {
                 name: node.name.clone(),
-                vtype: node.vtype.clone(),
+                vtype: node.vtype,
                 value: node.value.clone(),
             },
         );
@@ -63,7 +60,7 @@ impl ASTNode for Assignment {
     }
 
     fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
-        let ty = if let None = self.vtype {
+        let ty = if self.vtype.is_none() {
             // None first because borrow checker :/
             self.value.as_ref().unwrap().evaltype(symtab).unwrap()
         } else {
@@ -82,4 +79,5 @@ impl ASTNode for Assignment {
                 1,
             );
         }
-    }}
+    }
+}

@@ -2,11 +2,11 @@ use clap::Parser;
 use std::fs;
 use std::process;
 
-mod lex;
 mod ast;
+mod lex;
 
-use ast::SymbolTable;
 use ast::ir;
+use ast::SymbolTable;
 
 #[derive(Parser)]
 struct Args {

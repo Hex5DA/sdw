@@ -1,7 +1,7 @@
+use super::{ir::OutputWrapper, statement::Block, ASTNode, PrimitiveType, SymbolTable};
 use crate::consume;
-use crate::lex::{Lexeme, Keyword};
+use crate::lex::{Keyword, Lexeme};
 use anyhow::{bail, Result};
-use super::{PrimitiveType, ASTNode, SymbolTable, statement::Block, ir::OutputWrapper};
 use std::collections::VecDeque;
 
 #[derive(Debug, Default)]
@@ -84,5 +84,4 @@ impl ASTNode for Function {
         self.body.codegen(ow, symtab);
         ow.appendln("}".to_string(), 0);
     }
-
 }

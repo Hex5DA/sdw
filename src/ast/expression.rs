@@ -1,6 +1,6 @@
+use super::{ir::OutputWrapper, ASTNode, PrimitiveType, SymbolTable};
+use crate::lex::{Lexeme, Literal};
 use anyhow::{bail, Context, Result};
-use crate::lex::{Literal, Lexeme};
-use super::{PrimitiveType, SymbolTable, ir::OutputWrapper, ASTNode};
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
@@ -54,7 +54,7 @@ impl Expression {
             Self::Variable(nm) => {
                 let var = symtab
                     .get(nm)
-                    .expect(format!("Variable {nm} not found in scope").as_str());
+                    .unwrap_or_else(|| panic!("Variable {nm} not found in scope"));
 
                 let intname = format!("{}deref", var.name.clone());
                 ow.appendln(

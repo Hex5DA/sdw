@@ -1,7 +1,10 @@
+use super::{
+    expression::Expression, function::Function, ir::OutputWrapper, variables::Assignment, ASTNode,
+    PrimitiveType, SymbolTable,
+};
 use crate::consume; // eh.. crate root :/
-use super::{ir::OutputWrapper, SymbolTable, ASTNode, PrimitiveType, function::Function, variables::Assignment, expression::Expression};
+use crate::lex::{Keyword, Lexeme};
 use anyhow::{bail, Context, Result};
-use crate::lex::{Lexeme, Keyword};
 use std::collections::VecDeque;
 
 #[derive(Debug)]
@@ -36,7 +39,7 @@ impl ASTNode for Statement {
             ),
         })
     }
-   
+
     fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
         let stmt = match self {
             Statement::Return(inner) => format!(
@@ -125,4 +128,3 @@ impl ASTNode for Root {
         }
     }
 }
-

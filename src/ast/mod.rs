@@ -2,14 +2,14 @@ use crate::lex::Lexeme;
 use anyhow::{bail, Result};
 use std::collections::{HashMap, VecDeque};
 
-mod statement;
 mod expression;
 mod function;
+mod statement;
 mod variables;
 
 use expression::Expression;
-use statement::Root;
 use ir::OutputWrapper;
+use statement::Root;
 
 pub struct Var {
     pub name: String,
@@ -76,36 +76,40 @@ pub fn parse(lexemes: Vec<Lexeme>, symtab: &mut SymbolTable) -> Result<Root> {
 }
 
 pub mod ir {
-use std::{fs::File, io::{Write, BufWriter}};
     use super::{ASTNode, Root, SymbolTable};
-pub struct OutputWrapper {
-    file: BufWriter<File>,
-}
-
-impl OutputWrapper {
-    pub fn new(path: String) -> std::io::Result<Self> {
-        Ok(Self {
-            file: BufWriter::new(File::create(path)?),
-        })
+    use std::{
+        fs::File,
+        io::{BufWriter, Write},
+    };
+    pub struct OutputWrapper {
+        file: BufWriter<File>,
     }
 
-    pub fn append(&mut self, extra: String, idnt: usize) {
-        self.file.write(vec![b' '; idnt * 4].as_slice()).unwrap();
-        self.file.write(extra.as_bytes()).map(|_| ()).unwrap();
+    impl OutputWrapper {
+        pub fn new(path: String) -> std::io::Result<Self> {
+            Ok(Self {
+                file: BufWriter::new(File::create(path)?),
+            })
+        }
+
+        pub fn append(&mut self, extra: String, idnt: usize) {
+            self.file
+                .write_all(vec![b' '; idnt * 4].as_slice())
+                .unwrap();
+            self.file.write(extra.as_bytes()).map(|_| ()).unwrap();
+        }
+
+        pub fn appendln(&mut self, extra: String, idnt: usize) {
+            self.append(extra, idnt);
+            self.file.write_all(&[b'\n']).unwrap();
+        }
+
+        pub fn flush(&mut self) {
+            self.file.flush().map(|_| ()).unwrap();
+        }
     }
 
-    pub fn appendln(&mut self, extra: String, idnt: usize) {
-        self.append(extra, idnt);
-        self.file.write(&[b'\n']).unwrap();
-    }
-
-    pub fn flush(&mut self) {
-        self.file.flush().map(|_| ()).unwrap();
-    }
-}
-
-pub fn gen_ir(ow: &mut OutputWrapper, symtab: &mut SymbolTable, ast: Root ) {
+    pub fn gen_ir(ow: &mut OutputWrapper, symtab: &mut SymbolTable, ast: Root) {
         ast.codegen(ow, symtab)
     }
 }
-

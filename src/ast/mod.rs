@@ -14,7 +14,7 @@ use statement::Root;
 pub struct Var {
     pub name: String,
     pub vtype: Option<PrimitiveType>,
-    pub value: Option<Expression>,
+    pub value: Option<Box<dyn Expression>>,
 }
 
 pub type SymbolTable = HashMap<String, Var>;
@@ -53,7 +53,7 @@ macro_rules! consume {
         match $vec.pop_front() {
             Some($variant) => Ok::<(), anyhow::Error>({$then}),
             None => bail!("Unexpected EOF"),
-            got => bail!("Expected {}, got {:?}", stringify!($variant), got),
+            got => bail!("Expected {}, got {:?}. Remaining tokens were:\n{:?}", stringify!($variant), got, $vec),
          }
     };
     ( $($variant:pat),+ in $vec:expr) => {

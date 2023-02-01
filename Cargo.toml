@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.68", features = ["backtrace"] }
 clap = { version = "4.1.1", features = ["derive"] }
+dyn-clonable = "0.9.0"
+dyn-clone = "1.0.10"

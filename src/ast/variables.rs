@@ -1,4 +1,8 @@
-use super::{expression::Expression, ir::OutputWrapper, ASTNode, PrimitiveType, SymbolTable, Var};
+use super::{
+    expression::{new_expr, Expression},
+    ir::OutputWrapper,
+    ASTNode, PrimitiveType, SymbolTable, Var,
+};
 use crate::consume;
 use crate::lex::{Keyword, Lexeme, Modifier};
 use anyhow::{bail, Context, Result};
@@ -8,7 +12,7 @@ use std::collections::VecDeque;
 pub struct Assignment {
     pub modifiers: Vec<Modifier>,
     pub name: String,
-    pub value: Option<Expression>,
+    pub value: Option<Box<dyn Expression>>,
     pub vtype: Option<PrimitiveType>,
 }
 
@@ -35,7 +39,7 @@ impl ASTNode for Assignment {
         node.value = match lexemes.pop_front().context("Unexpected EOF")? {
             Lexeme::Newline => None,
             Lexeme::Assignment => {
-                let expr = Expression::new(lexemes, symtab)?;
+                let expr = new_expr(lexemes, symtab)?;
                 consume!(Lexeme::Newline in lexemes)?;
                 Some(expr)
             }

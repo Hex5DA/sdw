@@ -1,6 +1,9 @@
 use super::{
-    expression::Expression, function::Function, ir::OutputWrapper, variables::Assignment, ASTNode,
-    PrimitiveType, SymbolTable,
+    expression::{new_expr, Expression},
+    function::Function,
+    ir::OutputWrapper,
+    variables::Assignment,
+    ASTNode, PrimitiveType, SymbolTable,
 };
 use crate::consume; // eh.. crate root :/
 use crate::lex::{Keyword, Lexeme};
@@ -9,7 +12,7 @@ use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub enum Statement {
-    Return(Option<Expression>),
+    Return(Option<Box<dyn Expression>>),
     Function(Function),
     VariableDeclaration(Assignment),
 }
@@ -24,7 +27,7 @@ impl ASTNode for Statement {
                 {
                     None
                 } else {
-                    Some(Expression::new(lexemes, symtab)?)
+                    Some(new_expr(lexemes, symtab)?)
                 };
                 consume!(Lexeme::Newline in lexemes)?;
                 Self::Return(expr)
@@ -51,13 +54,10 @@ impl ASTNode for Statement {
                 }
                 .ir_type(),
                 match inner {
-                    Some(expr) => match expr {
-                        Expression::Variable(nm) => {
-                            expr.codegen(ow, symtab);
-                            format!("%{}deref", nm)
-                        }
-                        Expression::Literal(_) => expr.eval(symtab).unwrap().to_string(),
-                    },
+                    Some(expr) => {
+                        expr.codegen(ow, symtab);
+                        expr.ir(symtab)
+                    }
                     None => "".to_string(),
                 },
             ),

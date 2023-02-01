@@ -2,11 +2,11 @@ use clap::Parser;
 use std::fs;
 use std::process;
 
-mod ir;
 mod lex;
-mod parse;
+mod ast;
 
-use parse::SymbolTable;
+use ast::SymbolTable;
+use ast::ir;
 
 #[derive(Parser)]
 struct Args {
@@ -27,7 +27,7 @@ fn main() {
     });
 
     println!("Lexemes recieved:\n{:#?}", lexemes);
-    let ast = parse::parse(lexemes, &mut symtab).unwrap();
+    let ast = ast::parse(lexemes, &mut symtab).unwrap();
     println!("AST built, and recieved:\n{:#?}", ast);
     println!("Generating IR..");
     ir::gen_ir(&mut ow, &mut symtab, ast);

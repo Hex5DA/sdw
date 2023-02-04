@@ -20,14 +20,63 @@ pub fn new_expr(
     lexemes: &mut VecDeque<Lexeme>,
     symtab: &mut SymbolTable,
 ) -> Result<Box<dyn Expression>> {
-    Ok(match lexemes
-        .front()
-        .context("Unexpected EOF whilst parsing expression")?
-    {
-        Lexeme::Literal(_) => Box::new(Literal::new(lexemes, symtab)?) as Box<dyn Expression>,
-        Lexeme::Idn(_) => Box::new(Variable::new(lexemes, symtab)?) as Box<dyn Expression>,
-        unexpected => bail!("Could not construct an expression from {unexpected:?}"),
-    } as Box<dyn Expression>)
+    let nxt = lexemes.get(1).context("Unexpected EOF")?;
+    let t = if nxt == &Lexeme::Newline {
+        match lexemes
+            .front()
+            .context("Unexpected EOF whilst parsing expression")?
+        {
+            // issues:
+            // how to detect between
+            // var a = *b*;
+            // var a = *b + c*;
+            // the first lexeme is always an idn
+            Lexeme::Literal(_) => Box::new(Literal::new(lexemes, symtab)?) as Box<dyn Expression>,
+            Lexeme::Idn(_) => Box::new(Variable::new(lexemes, symtab)?) as Box<dyn Expression>,
+            unexpected => bail!("Could not construct an expression from {unexpected:?}"),
+        }
+    } else {
+        match nxt {
+            Lexeme::Addition => Box::new(Addition::new(lexemes, symtab)?) as Box<dyn Expression>,
+            _ => bail!(
+                "Whilst parsing an expression, an unexpected token was encountered: {:?}",
+                nxt
+            ),
+        }
+    };
+    Ok(t)
+}
+
+#[derive(Debug, Clone)]
+struct Addition(Box<dyn Expression>, Box<dyn Expression>);
+impl ASTNode for Addition {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
+        // issue: the addition lexeme is still in the vecdeque so when we call it again
+        // it just keeps recursing. need to take the first n items from lexemes where
+        // n is the index of the addition op and use that
+        let idx = lexemes.iter().position(|l| l == &Lexeme::Addition).unwrap();
+        let rhs = new_expr(&mut lexemes.range(..idx).copied().collect(), symtab)?;
+        consume!(Lexeme::Addition in lexemes)?;
+        let lhs = new_expr(lexemes, symtab)?;
+        println!("rhs {:?}\nlhs {:?}", rhs, lhs);
+        Ok(Self { 0: rhs, 1: lhs })
+    }
+
+    fn codegen(&self, _ow: &mut OutputWrapper, _symtab: &mut SymbolTable) {
+        todo!()
+    }
+}
+
+impl Expression for Addition {
+    fn evaltype(&self, symtab: &mut SymbolTable) -> Result<PrimitiveType> {
+        let lhs = self.0.evaltype(symtab)?;
+        assert_eq!(lhs, self.1.evaltype(symtab)?);
+        Ok(lhs)
+    }
+
+    fn eval(&self, _symtab: &mut SymbolTable) -> Result<i64> {
+        unreachable!()
+    }
 }
 
 impl ASTNode for Literal {

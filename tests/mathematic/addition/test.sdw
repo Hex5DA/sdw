@@ -1,0 +1,4 @@
+fn int main() {
+    var retval = 2 + 3;
+    return retval;
+}

@@ -1,12 +1,12 @@
 use anyhow::{bail, Context, Result};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Modifier {
     Mutable,
     Dynamic,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
     Fn,
     Return,
@@ -29,13 +29,12 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Literal {
     Integer(i64), // TODO: Add support for negative numbers
 }
 
-#[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Lexeme {
     Keyword(Keyword),
     Idn(String),
@@ -47,6 +46,7 @@ pub enum Lexeme {
     Newline,
     Delimiter,
     Assignment,
+    Addition,
 }
 
 impl Lexeme {
@@ -59,6 +59,7 @@ impl Lexeme {
             ';' => Lexeme::Newline,
             ',' => Lexeme::Delimiter,
             '=' => Lexeme::Assignment,
+            '+' => Lexeme::Addition,
             _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }

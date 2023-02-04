@@ -19,7 +19,7 @@ pub struct Var {
 
 pub type SymbolTable = HashMap<String, Var>;
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveType {
     // is this bad? this feels bad
     #[default]

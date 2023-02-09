@@ -20,50 +20,53 @@ pub fn new_expr(
     lexemes: &mut VecDeque<Lexeme>,
     symtab: &mut SymbolTable,
 ) -> Result<Box<dyn Expression>> {
-    let nxt = lexemes.get(1).context("Unexpected EOF")?;
-    let t = if nxt == &Lexeme::Newline {
-        match lexemes
-            .front()
-            .context("Unexpected EOF whilst parsing expression")?
-        {
-            // issues:
-            // how to detect between
-            // var a = *b*;
-            // var a = *b + c*;
-            // the first lexeme is always an idn
-            Lexeme::Literal(_) => Box::new(Literal::new(lexemes, symtab)?) as Box<dyn Expression>,
-            Lexeme::Idn(_) => Box::new(Variable::new(lexemes, symtab)?) as Box<dyn Expression>,
-            unexpected => bail!("Could not construct an expression from {unexpected:?}"),
+    assert!(!lexemes.is_empty());
+    let expr = match lexemes.get(1) {
+        Some(Lexeme::Newline) | None => {
+            match lexemes
+                .front()
+                .context("Unexpected EOF whilst parsing expression")?
+            {
+                // issues:
+                // how to detect between
+                // var a = *b*;
+                // var a = *b + c*;
+                // the first lexeme is always an idn
+                Lexeme::Literal(_) => {
+                    Box::new(Literal::new(lexemes, symtab)?) as Box<dyn Expression>
+                }
+                Lexeme::Idn(_) => Box::new(Variable::new(lexemes, symtab)?) as Box<dyn Expression>,
+                unexpected => bail!("Could not construct an expression from {unexpected:?}"),
+            }
         }
-    } else {
-        match nxt {
+        Some(next @ _) => match next {
             Lexeme::Addition => Box::new(Addition::new(lexemes, symtab)?) as Box<dyn Expression>,
             _ => bail!(
                 "Whilst parsing an expression, an unexpected token was encountered: {:?}",
-                nxt
+                next
             ),
-        }
+        },
     };
-    Ok(t)
+    Ok(expr)
 }
 
 #[derive(Debug, Clone)]
 struct Addition(Box<dyn Expression>, Box<dyn Expression>);
 impl ASTNode for Addition {
     fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
-        // issue: the addition lexeme is still in the vecdeque so when we call it again
-        // it just keeps recursing. need to take the first n items from lexemes where
-        // n is the index of the addition op and use that
         let idx = lexemes.iter().position(|l| l == &Lexeme::Addition).unwrap();
-        let rhs = new_expr(&mut lexemes.range(..idx).copied().collect(), symtab)?;
+        let rhs = new_expr(&mut lexemes.drain(..idx).collect(), symtab)?;
         consume!(Lexeme::Addition in lexemes)?;
         let lhs = new_expr(lexemes, symtab)?;
-        println!("rhs {:?}\nlhs {:?}", rhs, lhs);
         Ok(Self { 0: rhs, 1: lhs })
     }
 
-    fn codegen(&self, _ow: &mut OutputWrapper, _symtab: &mut SymbolTable) {
-        todo!()
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        assert_eq!(self.0.evaltype(symtab).unwrap(), self.1.evaltype(symtab).unwrap());
+        ow.appendln(
+            format!("%{} = add {} {}, {}", self.ir(symtab), self.0.evaltype(symtab).unwrap().ir_type(), self.0.eval(symtab).unwrap(), self.1.eval(symtab).unwrap()),
+            1
+        );
     }
 }
 
@@ -74,8 +77,15 @@ impl Expression for Addition {
         Ok(lhs)
     }
 
-    fn eval(&self, _symtab: &mut SymbolTable) -> Result<i64> {
-        unreachable!()
+    fn eval(&self, symtab: &mut SymbolTable) -> Result<i64> {
+        // vv expression simplification
+        // self.0.eval() + self.1.eval()
+        // unreachable!()
+        bail!(self.ir(symtab)) // oh my god this makes me want to die but its getting late
+    }
+
+    fn ir(&self, _symtab: &mut SymbolTable) -> String {
+        "addtemp".to_string()
     }
 }
 
@@ -143,7 +153,7 @@ impl Expression for Variable {
     }
 
     fn eval(&self, _symtab: &mut SymbolTable) -> Result<i64> {
-        // vv constant, folding, want reference passing
+        // vv constant folding, want reference passing for now
         // let var = symtab.get(nm).context(format!("Variable {nm} not found in scope"))?;
         // let val = var.value.clone().context(format!("The variable {nm} has no defined value"))?;
         // val.eval(symtab)?

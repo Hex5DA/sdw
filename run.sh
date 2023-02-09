@@ -1,45 +1,41 @@
 #!/bin/zsh
 
 asm() {
-    cargo run -- $1 ./a.ll
-    llc ./a.ll -o ./a.s
+    llc $1 -o ./a.s
     gcc ./a.s -o ./a
     ./a
     exitcode=$?
-    rm ./a.ll ./a.s ./a
+    rm ./a.s ./a
     return $exitcode
 }
 
 bc() {
-    cargo run -- $1 ./a.ll
-    llvm-as ./a.ll -o ./a.bc
+    llvm-as $1 -o ./a.bc
     lli ./a.bc
     exitcode=$?
     rm ./a.ll ./a.bc
     return $exitcode
 }
 
-if [[ "$3" == "--quiet" ]]; then
-    ext=" > /dev/null"
-else
-    ext=""
-fi
-
 if [[ "$1" == "asm" ]]; then
-    eval "asm $2 $ext"
+    eval "asm $2"
     echo $?
 fi
 
 if [[ "$1" == "bc" ]]; then
-    eval "bc $2 $ext"
+    eval "bc $2"
     echo $?
 fi
 
+if [[ "$3" == "--clean" ]]; then
+    rm $2
+fi
+
 if [[ "$#" -le 1 ]]; then
-    echo "Syntax: run.sh [asm | bc] [path] --quiet?"
+    echo "Syntax: run.sh [asm | bc] [path] --clean"
     echo "Options:"
-    echo "  asm   -> SDWL will compile the LLVM IR to assembly and then execute it"
-    echo "  bc    -> SDWL will compile the LLVM IR to LLVM bitcode and interpret it"
-    echo "  quiet -> The output of the script will be hidden, however the exit code will still be printed"
+    echo "  asm   -> compile the LLVM IR to assembly and then execute it"
+    echo "  bc    -> compile the LLVM IR to LLVM bitcode and interpret it"
+    echo "  clean -> remove the provided LLVM IR file"
 fi
 

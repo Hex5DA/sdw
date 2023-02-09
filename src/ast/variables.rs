@@ -73,11 +73,15 @@ impl ASTNode for Assignment {
 
         ow.appendln(format!("%{} = alloca {}", self.name, ty.ir_type()), 1);
         if let Some(val) = &self.value {
+            val.codegen(ow, symtab);
             ow.appendln(
                 format!(
                     "store {} {}, ptr %{}",
                     ty.ir_type(),
-                    val.eval(symtab).unwrap(),
+                    match val.eval(symtab) {
+                        Ok(v) => v.to_string(),
+                        Err(v) => format!("%{}", v.to_string()),
+                    },
                     self.name
                 ),
                 1,

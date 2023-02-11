@@ -1,12 +1,12 @@
 use anyhow::{bail, Context, Result};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Modifier {
     Mutable,
     Dynamic,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Keyword {
     Fn,
     Return,
@@ -29,12 +29,12 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Literal {
     Integer(i64), // TODO: Add support for negative numbers
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Lexeme {
     Keyword(Keyword),
     Idn(String),

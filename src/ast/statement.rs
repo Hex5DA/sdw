@@ -1,5 +1,5 @@
 use super::{
-    expression::{new_expr, Expression},
+    expression::{Expression, ExpressionTrait},
     function::Function,
     ir::OutputWrapper,
     variables::Assignment,
@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 
 #[derive(Debug)]
 pub enum Statement {
-    Return(Option<Box<dyn Expression>>),
+    Return(Option<Expression>),
     Function(Function),
     VariableDeclaration(Assignment),
 }
@@ -27,7 +27,7 @@ impl ASTNode for Statement {
                 {
                     None
                 } else {
-                    Some(new_expr(lexemes, symtab)?)
+                    Some(Expression::new(lexemes, symtab)?)
                 };
                 consume!(Lexeme::Newline in lexemes)?;
                 Self::Return(expr)

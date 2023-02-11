@@ -1,5 +1,5 @@
 use super::{
-    expression::{new_expr, Expression},
+    expression::{Expression, ExpressionTrait},
     ir::OutputWrapper,
     ASTNode, PrimitiveType, SymbolTable, Var,
 };
@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 pub struct Assignment {
     pub modifiers: Vec<Modifier>,
     pub name: String,
-    pub value: Option<Box<dyn Expression>>,
+    pub value: Option<Expression>,
     pub vtype: Option<PrimitiveType>,
 }
 
@@ -39,7 +39,7 @@ impl ASTNode for Assignment {
         node.value = match lexemes.pop_front().context("Unexpected EOF")? {
             Lexeme::Newline => None,
             Lexeme::Assignment => {
-                let expr = new_expr(lexemes, symtab)?;
+                let expr = Expression::new(lexemes, symtab)?;
                 consume!(Lexeme::Newline in lexemes)?;
                 Some(expr)
             }
@@ -78,11 +78,8 @@ impl ASTNode for Assignment {
                 format!(
                     "store {} {}, ptr %{}",
                     ty.ir_type(),
-                    match val.eval(symtab) {
-                        Ok(v) => v.to_string(),
-                        Err(v) => format!("%{}", v.to_string()),
-                    },
-                    self.name
+                    val.eval(symtab).unwrap(),
+                    self.name,
                 ),
                 1,
             );

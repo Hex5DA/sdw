@@ -14,12 +14,12 @@ use statement::Root;
 pub struct Var {
     pub name: String,
     pub vtype: Option<PrimitiveType>,
-    pub value: Option<Box<dyn Expression>>,
+    pub value: Option<Expression>,
 }
 
 pub type SymbolTable = HashMap<String, Var>;
 
-#[derive(Default, Debug, Copy, Clone, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrimitiveType {
     // is this bad? this feels bad
     #[default]

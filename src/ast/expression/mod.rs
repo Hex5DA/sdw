@@ -39,6 +39,15 @@ impl ASTNode for Expression {
                 Lexeme::Addition => {
                     Box::new(Addition::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
                 }
+                Lexeme::Subtraction => {
+                    Box::new(Subtraction::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
+                }
+                Lexeme::Multiplication => {
+                    Box::new(Multiplication::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
+                }
+                Lexeme::Division => {
+                    Box::new(Division::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
+                }
                 _ => bail!(
                     "Whilst parsing an expression, an unexpected token was encountered: {:?}",
                     next

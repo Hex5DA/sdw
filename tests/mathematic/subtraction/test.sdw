@@ -1,0 +1,4 @@
+fn int main() {
+    var x = 2 - 3;
+    return x;
+}

@@ -47,6 +47,9 @@ pub enum Lexeme {
     Delimiter,
     Assignment,
     Addition,
+    Subtraction,
+    Multiplication,
+    Division,
 }
 
 impl Lexeme {
@@ -60,6 +63,9 @@ impl Lexeme {
             ',' => Lexeme::Delimiter,
             '=' => Lexeme::Assignment,
             '+' => Lexeme::Addition,
+            '-' => Lexeme::Subtraction,
+            '*' => Lexeme::Multiplication,
+            '/' => Lexeme::Division,
             _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }

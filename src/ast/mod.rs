@@ -6,6 +6,7 @@ mod expression;
 mod function;
 mod statement;
 mod variables;
+mod conditional;
 
 use expression::Expression;
 use ir::OutputWrapper;

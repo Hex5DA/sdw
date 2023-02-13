@@ -29,6 +29,7 @@ fn main() {
     println!("Lexemes recieved:\n{:#?}", lexemes);
     let ast = ast::parse(lexemes, &mut symtab).unwrap();
     println!("AST built, and recieved:\n{:#?}", ast);
+    return;
     println!("Generating IR..");
     ir::gen_ir(&mut ow, &mut symtab, ast);
     ow.flush();

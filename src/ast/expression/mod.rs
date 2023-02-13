@@ -21,7 +21,8 @@ impl ASTNode for Expression {
     fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         assert!(!lexemes.is_empty());
         let expr = match lexemes.get(1) {
-            Some(Lexeme::Newline) | None => {
+            // TODO: hacky ASF!
+            Some(Lexeme::Newline) | Some(Lexeme::OpenBrace) | None => {
                 match lexemes
                     .front()
                     .context("Unexpected EOF whilst parsing expression")?
@@ -48,6 +49,10 @@ impl ASTNode for Expression {
                 Lexeme::Division => {
                     Box::new(Division::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
                 }
+                // TODO: fuck this
+                Lexeme::CloseParen => {
+                    Box::new(Expression::new(&mut lexemes.drain(..1).collect(), symtab)?) as Box<dyn ExpressionTrait>
+                },
                 _ => bail!(
                     "Whilst parsing an expression, an unexpected token was encountered: {:?}",
                     next

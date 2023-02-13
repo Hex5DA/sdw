@@ -1,6 +1,6 @@
 # Shadow
 
-A toy language I'm making for funsies!
+A toy language I'm making for shits and giggles!
 
 Will sort this out properly, but some working design notes:
 
@@ -38,6 +38,13 @@ Lifetimes declare a variable's type, name and modifiers.
 Variables are immutable by default, & their value can't be changed.
 Mutable variables may be declared with the *mut* keyword.
 Their value may change but not their lifetime.
+
+## TODO
+
+- Fix if block shorthand (broken)
+- Conditional refactor
+- Inequalities ect
+- Expand type system
 
 ## Roadmap
 

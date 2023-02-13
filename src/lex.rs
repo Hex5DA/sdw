@@ -13,6 +13,8 @@ pub enum Keyword {
     Variable,
     Modifier(Modifier),
     Coercion,
+    If,
+    Else,
 }
 
 impl Keyword {
@@ -24,6 +26,8 @@ impl Keyword {
             "as" => Keyword::Coercion,
             "mut" => Keyword::Modifier(Modifier::Mutable),
             "dyn" => Keyword::Modifier(Modifier::Dynamic),
+            "if" => Keyword::If,
+            "else" => Keyword::Else,
             _ => bail!("Unknown keyword parsed, '{from}'"),
         })
     }
@@ -50,6 +54,7 @@ pub enum Lexeme {
     Subtraction,
     Multiplication,
     Division,
+    AngleLeft,
 }
 
 impl Lexeme {
@@ -66,6 +71,7 @@ impl Lexeme {
             '-' => Lexeme::Subtraction,
             '*' => Lexeme::Multiplication,
             '/' => Lexeme::Division,
+            '>' => Lexeme::AngleLeft,
             _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }

@@ -3,9 +3,10 @@ use super::{
     function::Function,
     ir::OutputWrapper,
     variables::Assignment,
+    conditional::Conditional,
     ASTNode, PrimitiveType, SymbolTable,
 };
-use crate::consume; // eh.. crate root :/
+use crate::consume;
 use crate::lex::{Keyword, Lexeme};
 use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;
@@ -15,6 +16,7 @@ pub enum Statement {
     Return(Option<Expression>),
     Function(Function),
     VariableDeclaration(Assignment),
+    Conditional(Conditional),
 }
 
 impl ASTNode for Statement {
@@ -34,7 +36,10 @@ impl ASTNode for Statement {
             }
             Lexeme::Keyword(Keyword::Variable) | Lexeme::Keyword(Keyword::Modifier(_)) => {
                 Self::VariableDeclaration(Assignment::new(lexemes, symtab)?)
-            }
+            },
+            Lexeme::Keyword(Keyword::If) => {
+                Self::Conditional(Conditional::new(lexemes, symtab)?)
+            },
             unexpected => todo!(
                 "token encountered: {:?}; all tokens\n{:?}",
                 unexpected,
@@ -70,6 +75,7 @@ impl ASTNode for Statement {
                 ass.codegen(ow, symtab);
                 "".to_string()
             }
+            Statement::Conditional(_) => todo!(),
         };
         ow.appendln(stmt, 1);
     }
@@ -100,6 +106,12 @@ impl ASTNode for Block {
         for node in &self.stmts {
             node.codegen(ow, symtab);
         }
+    }
+}
+
+impl Block {
+    pub fn from_statements(stmts: Vec<Statement>) -> Self {
+        Self { stmts }
     }
 }
 

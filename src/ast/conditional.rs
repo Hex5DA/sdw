@@ -10,14 +10,6 @@ use crate::consume;
 use std::collections::VecDeque;
 use anyhow::{Result, Context, bail};
 
-// conditionals always start with an if
-// they optionally have an unlimited number of else ifs
-// they optionally end with an else
-
-// else ifs can be represented as conditonals
-// thus recursive defintion: else ifs are a vector of conditonals
-// optional else conditional
-
 #[derive(Debug)]
 pub struct Conditional {
     cond: ConditionalItem,
@@ -28,10 +20,10 @@ pub struct Conditional {
 impl ASTNode for Conditional {
     fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
         consume!(Lexeme::Keyword(Keyword::If) in lexemes)?;
-        let cond = ConditionalItem::new(lexemes, symtab).context("malformed if expression, maybe")?;
+        let cond = ConditionalItem::new(lexemes, symtab)?.context("malformed if expression, maybe")?;
         
         let mut elifs = Vec::new();
-        while let Some(conditem) = ConditionalItem::new(lexemes, symtab) {
+        while let Some(conditem) = ConditionalItem::new(lexemes, symtab)? {
             elifs.push(conditem);
             if let Some(Lexeme::CloseBrace) = lexemes.front() {
                 break;
@@ -67,32 +59,31 @@ pub struct ConditionalItem {
 }
 
 impl ConditionalItem {
-    // TODO: return Result<Option<Self>>, error handling
-    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Option<Self> {
+    fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Option<Self>> {
         if lexemes.front() == Some(&Lexeme::Keyword(Keyword::Else)) {
             if lexemes.get(1) != Some(&Lexeme::Keyword(Keyword::If)) {
-                return None;
+                return Ok(None);
             }
-            // TODO: replace with consume!()
-            lexemes.pop_front().unwrap();
-            lexemes.pop_front().unwrap();
+            consume!(Lexeme::Keyword(Keyword::Else) in lexemes)?;
+            consume!(Lexeme::Keyword(Keyword::If) in lexemes)?;
         }    
 
         let expir: &mut VecDeque<Lexeme> = &mut lexemes.iter().cloned().collect();
-        let _ = Expression::new(expir, symtab);
-        // TODO: verify there is a statement, this sucks
-        let single_stmt = *expir.front()? != Lexeme::OpenBrace;
-        Some(if single_stmt {
+        let _ = Expression::new(expir, symtab)?;
+        let single_stmt = *expir.front().unwrap() != Lexeme::OpenBrace;
+
+        Ok(Some(if single_stmt {
+            let _ = Statement::new(expir, symtab)?; // verify there is a statement
             assert_eq!(lexemes.pop_front(), Some(Lexeme::OpenParen), "parenthese expected in shorthand notation");
-            let expr = Expression::new(lexemes, symtab).ok()?;
+            let expr = Expression::new(lexemes, symtab)?;
             assert_eq!(lexemes.pop_front(), Some(Lexeme::CloseParen), "parenthese expected in shorthand notation");
-            let body = Block::from_statements(vec![Statement::new(lexemes, symtab).ok()?]);
+            let body = Block::from_statements(vec![Statement::new(lexemes, symtab)?]);
             Self { expr, body }
         } else {
-            let expr = Expression::new(lexemes, symtab).ok()?;
-            let body = Block::new(lexemes, symtab).ok()?;
+            let expr = Expression::new(lexemes, symtab)?;
+            let body = Block::new(lexemes, symtab)?;
             Self { expr, body }
-        })
+        }))
     }
 }
 

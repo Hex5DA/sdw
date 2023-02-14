@@ -33,12 +33,19 @@ impl ASTNode for Conditional {
         let mut elifs = Vec::new();
         while let Some(conditem) = ConditionalItem::new(lexemes, symtab) {
             elifs.push(conditem);
+            if let Some(Lexeme::CloseBrace) = lexemes.front() {
+                break;
+            }
         }
 
         let mut else_block = None;
         if let Some(Lexeme::Keyword(Keyword::Else)) = lexemes.front() {
             lexemes.pop_front().unwrap();
-            else_block = Some(Block::new(lexemes, symtab)?);
+            if let Some(Lexeme::OpenBrace) = lexemes.front() {
+                else_block = Some(Block::new(lexemes, symtab)?);
+            } else {
+                else_block = Some(Block::from_statements(vec![Statement::new(lexemes, symtab)?]));
+            }
         }
 
         Ok(Self {

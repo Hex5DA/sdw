@@ -1,4 +1,4 @@
-use super::{
+use crate::ast::{
     expression::{Expression, ExpressionTrait},
     ir::OutputWrapper,
     ASTNode, PrimitiveType, SymbolTable, Var,

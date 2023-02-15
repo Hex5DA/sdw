@@ -3,10 +3,7 @@ use anyhow::{bail, Result};
 use std::collections::{HashMap, VecDeque};
 
 mod expression;
-mod function;
 mod statement;
-mod variables;
-mod conditional;
 
 use expression::Expression;
 use ir::OutputWrapper;
@@ -82,6 +79,7 @@ pub mod ir {
         fs::File,
         io::{BufWriter, Write},
     };
+
     pub struct OutputWrapper {
         file: BufWriter<File>,
     }

@@ -1,11 +1,7 @@
 use crate::{
-    ast::{
-        expression::{ExpressionTrait},
-        ir::OutputWrapper,
-        ASTNode, PrimitiveType, SymbolTable,
-    },
+    ast::{expression::ExpressionTrait, ir::OutputWrapper, ASTNode, PrimitiveType, SymbolTable},
     consume,
-    lex::{Lexeme},
+    lex::Lexeme,
 };
 use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;

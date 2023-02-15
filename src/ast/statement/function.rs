@@ -1,4 +1,4 @@
-use super::{ir::OutputWrapper, statement::Block, ASTNode, PrimitiveType, SymbolTable};
+use crate::ast::{ir::OutputWrapper, statement::Block, ASTNode, PrimitiveType, SymbolTable};
 use crate::consume;
 use crate::lex::{Keyword, Lexeme};
 use anyhow::{bail, Result};

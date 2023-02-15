@@ -3,10 +3,7 @@ use crate::ast::{
     ir::OutputWrapper,
     ASTNode, PrimitiveType, SymbolTable,
 };
-use crate::{
-    consume,
-    lex::{Lexeme},
-};
+use crate::{consume, lex::Lexeme};
 use anyhow::{bail, Result};
 use std::collections::VecDeque;
 
@@ -62,7 +59,10 @@ impl ExpressionTrait for Addition {
 pub struct Subtraction(Expression, Expression);
 impl ASTNode for Subtraction {
     fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
-        let idx = lexemes.iter().position(|l| l == &Lexeme::Subtraction).unwrap();
+        let idx = lexemes
+            .iter()
+            .position(|l| l == &Lexeme::Subtraction)
+            .unwrap();
         let rhs = Expression::new(&mut lexemes.drain(..idx).collect(), symtab)?;
         consume!(Lexeme::Subtraction in lexemes)?;
         let lhs = Expression::new(lexemes, symtab)?;
@@ -106,12 +106,14 @@ impl ExpressionTrait for Subtraction {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct Multiplication(Expression, Expression);
 impl ASTNode for Multiplication {
     fn new(lexemes: &mut VecDeque<Lexeme>, symtab: &mut SymbolTable) -> Result<Self> {
-        let idx = lexemes.iter().position(|l| l == &Lexeme::Multiplication).unwrap();
+        let idx = lexemes
+            .iter()
+            .position(|l| l == &Lexeme::Multiplication)
+            .unwrap();
         let rhs = Expression::new(&mut lexemes.drain(..idx).collect(), symtab)?;
         consume!(Lexeme::Multiplication in lexemes)?;
         let lhs = Expression::new(lexemes, symtab)?;

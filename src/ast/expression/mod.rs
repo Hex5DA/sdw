@@ -51,8 +51,9 @@ impl ASTNode for Expression {
                 }
                 // TODO: fuck this
                 Lexeme::CloseParen => {
-                    Box::new(Expression::new(&mut lexemes.drain(..1).collect(), symtab)?) as Box<dyn ExpressionTrait>
-                },
+                    Box::new(Expression::new(&mut lexemes.drain(..1).collect(), symtab)?)
+                        as Box<dyn ExpressionTrait>
+                }
                 _ => bail!(
                     "Whilst parsing an expression, an unexpected token was encountered: {:?}",
                     next

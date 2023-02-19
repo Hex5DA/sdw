@@ -1,10 +1,11 @@
-use crate::ast::{expression::Expression, statement::Block, ASTNode, OutputWrapper, SymbolTable};
+use crate::ast::{expression::{Expression, ExpressionTrait}, statement::Block, ASTNode, OutputWrapper, SymbolTable};
 use crate::consume;
 use crate::lex::{Keyword, Lexeme};
 use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Conditional {
     cond: ConditionalItem,
     elifs: Option<Vec<ConditionalItem>>,
@@ -26,8 +27,9 @@ impl ASTNode for Conditional {
         }
 
         let else_block = if let Lexeme::Keyword(Keyword::Else) =
-            lexemes.pop_front().context("unexpected eof")?
+            lexemes.front().context("unexpected eof")?
         {
+            lexemes.pop_front();
             Some(Block::new(lexemes, symtab)?)
         } else {
             None
@@ -40,12 +42,21 @@ impl ASTNode for Conditional {
         })
     }
 
-    fn codegen(&self, _ow: &mut OutputWrapper, _symtab: &mut SymbolTable) {
-        todo!()
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        self.cond.codegen(ow, symtab);
+        if let Some(elifs) = &self.elifs {
+            for cnditm in elifs {
+                cnditm.codegen(ow, symtab);
+            }
+        }
+        if let Some(e) = &self.else_block {
+            e.codegen(ow, symtab);
+        }
     }
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ConditionalItem {
     expr: Expression,
     body: Block,
@@ -71,5 +82,13 @@ impl ConditionalItem {
             expr: Expression::new(lexemes, symtab)?,
             body: Block::new(lexemes, symtab)?,
         }))
+    }
+
+    fn codegen(&self, ow: &mut OutputWrapper, symtab: &mut SymbolTable) {
+        self.expr.codegen(ow, symtab);
+        ow.appendln(format!("br i1 %{}, label %IfTrue, label %IfFalse", self.expr.ir(symtab)), 1);
+        ow.appendln("IfTrue:".to_string(), 0);
+        self.body.codegen(ow, symtab);
+        ow.appendln("IfFalse:".to_string(), 0);
     }
 }

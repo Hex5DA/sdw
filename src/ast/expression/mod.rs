@@ -11,6 +11,8 @@ mod mathops;
 pub use mathops::*;
 mod variable;
 pub use variable::*;
+mod comparisons;
+pub use comparisons::Comparison;
 
 #[derive(Debug, Clone)]
 pub struct Expression {
@@ -48,6 +50,9 @@ impl ASTNode for Expression {
                 }
                 Lexeme::Division => {
                     Box::new(Division::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
+                }
+                Lexeme::AngleLeft | Lexeme::AngleRight => {
+                    Box::new(Comparison::new(lexemes, symtab)?) as Box<dyn ExpressionTrait>
                 }
                 // TODO: fuck this
                 Lexeme::CloseParen => {

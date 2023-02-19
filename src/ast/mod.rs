@@ -23,6 +23,7 @@ pub enum PrimitiveType {
     #[default]
     Void,
     Int,
+    Bool,
 }
 
 impl PrimitiveType {
@@ -30,6 +31,7 @@ impl PrimitiveType {
         Ok(match from.as_str() {
             "void" => Self::Void,
             "int" => Self::Int,
+            "bool" => Self::Bool,
             _ => bail!(
                 "'Custom' variable types not implemented yet (given {})",
                 from
@@ -41,6 +43,7 @@ impl PrimitiveType {
         match self {
             Self::Int => "i64", // TODO: Support other sizes of integer
             Self::Void => "void",
+            Self::Bool => "i1",
         }
     }
 }

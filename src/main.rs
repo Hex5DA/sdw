@@ -27,10 +27,14 @@ fn main() {
     });
 
     println!("[DBG] Lexemes recieved:\n{:#?}", lexemes);
-    let ast = ast::parse(lexemes, &mut symtab).unwrap_or_else(|err| {
-        eprintln!("An error occured whilst building the AST the file:\n{}", err);
-        process::exit(1);
-    });
+    let ast = ast::parse(lexemes, &mut symtab).unwrap();
+    // .unwrap_or_else(|err| {
+    //    eprintln!(
+    //        "An error occured whilst building the AST the file:\n{}",
+    //        err
+    //    );
+    //    process::exit(1);
+    // });
     println!("[DBG] AST built, and recieved:\n{:#?}", ast);
     println!("Generating IR..");
     ir::gen_ir(&mut ow, &mut symtab, ast);

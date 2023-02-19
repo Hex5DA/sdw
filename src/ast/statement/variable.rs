@@ -38,7 +38,7 @@ impl ASTNode for Assignment {
 
         node.value = match lexemes.pop_front().context("Unexpected EOF")? {
             Lexeme::Newline => None,
-            Lexeme::Assignment => {
+            Lexeme::Equals => {
                 let expr = Expression::new(lexemes, symtab)?;
                 consume!(Lexeme::Newline in lexemes)?;
                 Some(expr)

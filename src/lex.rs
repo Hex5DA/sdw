@@ -49,12 +49,14 @@ pub enum Lexeme {
     CloseBrace,
     Newline,
     Delimiter,
-    Assignment,
+    Equals,
+    Bang,
     Addition,
     Subtraction,
     Multiplication,
     Division,
     AngleLeft,
+    AngleRight,
 }
 
 impl Lexeme {
@@ -66,12 +68,14 @@ impl Lexeme {
             ')' => Lexeme::CloseParen,
             ';' => Lexeme::Newline,
             ',' => Lexeme::Delimiter,
-            '=' => Lexeme::Assignment,
+            '=' => Lexeme::Equals,
+            '!' => Lexeme::Bang,
             '+' => Lexeme::Addition,
             '-' => Lexeme::Subtraction,
             '*' => Lexeme::Multiplication,
             '/' => Lexeme::Division,
-            '>' => Lexeme::AngleLeft,
+            '<' => Lexeme::AngleLeft,
+            '>' => Lexeme::AngleRight,
             _ => bail!("Unknown symbol '{from}' encountered."),
         })
     }

@@ -3,7 +3,10 @@ use super::{
     ir::OutputWrapper,
     ASTNode, PrimitiveType, SymbolTable,
 };
-use crate::{consume, lex::{Keyword, Lexeme}};
+use crate::{
+    consume,
+    lex::{Keyword, Lexeme},
+};
 use anyhow::{bail, Context, Result};
 use std::collections::VecDeque;
 
@@ -76,7 +79,10 @@ impl ASTNode for Statement {
                 ass.codegen(ow, symtab);
                 "".to_string()
             }
-            Statement::Conditional(_) => todo!(),
+            Statement::Conditional(cnd) => {
+                cnd.codegen(ow, symtab);
+                "".to_string()
+            }
         };
         ow.appendln(stmt, 1);
     }
@@ -99,7 +105,6 @@ impl ASTNode for Block {
             node.stmts.push(Statement::new(lexemes, symtab)?);
         }
         consume!(Lexeme::CloseBrace in lexemes)?;
-
         Ok(node)
     }
 

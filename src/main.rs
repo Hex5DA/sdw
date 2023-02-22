@@ -1,42 +1,29 @@
-use clap::Parser;
-use std::fs;
+use std::fs::read_to_string;
 use std::process;
 
-mod ast;
-mod lex;
+use clap::Parser;
 
-use ast::ir;
-use ast::SymbolTable;
+use shadow::lex::lex;
 
 #[derive(Parser)]
 struct Args {
-    filepath: String,
-    #[arg(default_value = "a.ll")]
-    ofile: String,
+    filename: String,
 }
 
 fn main() {
     let args = Args::parse();
-    let mut ow = ir::OutputWrapper::new(args.ofile).unwrap();
-    let mut symtab = SymbolTable::new();
-
-    let contents = fs::read_to_string(args.filepath).unwrap();
-    let lexemes = lex::lex(contents).unwrap_or_else(|err| {
-        eprintln!("An error occured whilst lexing the file:\n{}", err);
+    let contents = read_to_string(&args.filename).unwrap_or_else(|err| {
+        eprintln!(
+            "could not read from the given file {}; error returned was\n{}",
+            &args.filename, err
+        );
         process::exit(1);
     });
 
-    println!("[DBG] Lexemes recieved:\n{:#?}", lexemes);
-    let ast = ast::parse(lexemes, &mut symtab).unwrap();
-    // .unwrap_or_else(|err| {
-    //    eprintln!(
-    //        "An error occured whilst building the AST the file:\n{}",
-    //        err
-    //    );
-    //    process::exit(1);
-    // });
-    println!("[DBG] AST built, and recieved:\n{:#?}", ast);
-    println!("Generating IR..");
-    ir::gen_ir(&mut ow, &mut symtab, ast);
-    ow.flush();
+    let lexemes = lex(&contents).unwrap_or_else(|err| {
+        eprintln!("{}", err);
+        err.verbose(&contents);
+        process::exit(1);
+    });
+    println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
 }

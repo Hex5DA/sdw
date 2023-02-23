@@ -1,6 +1,6 @@
 type PosInt = u64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct PosInfo {
     pub line: PosInt,
     pub column: PosInt,

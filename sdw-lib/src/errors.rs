@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::common::PosInfo;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ShadowError>;
 
@@ -22,7 +22,7 @@ impl std::fmt::Display for ShadowError {
         writeln!(
             f,
             "error occurred at line {}, character {}.",
-            self.pos.line, self.pos.column
+            self.pos.line + 1, self.pos.column + 1
         )?;
         Ok(())
     }
@@ -33,18 +33,18 @@ fn repeat_char(ch: char, len: usize) -> String {
 }
 
 impl ShadowError {
-    pub fn verbose(&self, raw: &String) {
+    pub fn verbose(&self, raw: &str) {
         println!("[ .. ]");
         println!(
             "{}",
-            raw.split("\n")
+            raw.split('\n')
                 .collect::<Vec<&str>>()
-                .get((self.pos.line - 1) as usize)
+                .get(self.pos.line as usize)
                 .expect("an error was reported on a line that does not exist")
         );
         println!(
             "{}{} - error occured here!",
-            repeat_char(' ', (self.pos.column - 1) as usize),
+            repeat_char(' ', self.pos.column as usize),
             repeat_char('^', self.pos.length as usize)
         );
         println!("[ .. ]");
@@ -58,6 +58,13 @@ impl ShadowError {
                 column,
                 length,
             },
+        }
+    }
+
+    pub fn from_pos<T: Into<ErrType>>(err: T, pos: PosInfo) -> Self {
+        Self {
+            ty: err.into(),
+            pos,
         }
     }
 }
@@ -106,13 +113,12 @@ impl std::fmt::Display for ErrType {
 
 #[derive(Error, Debug)]
 pub enum LexErrors {
-    #[error("an unrecognised token was occured: {0}")]
+    #[error("an unrecognised token was occured: {0:?}")]
     UnrecognisedToken(String),
 }
 
-impl Into<ErrType> for LexErrors {
-    fn into(self) -> ErrType {
-        ErrType::Lex(self)
+impl From<LexErrors> for ErrType {
+    fn from(other: LexErrors) -> ErrType {
+        ErrType::Lex(other)
     }
 }
-

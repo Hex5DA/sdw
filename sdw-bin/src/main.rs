@@ -3,7 +3,7 @@ use std::process;
 
 use clap::Parser;
 
-use shadow::lex::lex;
+use sdw_lib::lex::lex;
 
 #[derive(Parser)]
 struct Args {

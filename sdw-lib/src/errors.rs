@@ -1,4 +1,4 @@
-use crate::common::PosInfo;
+use crate::common::Span;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ShadowError>;
@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, ShadowError>;
 #[derive(Debug)]
 pub struct ShadowError {
     ty: ErrType,
-    pub pos: PosInfo,
+    pub span: Span,
 }
 
 impl std::fmt::Display for ShadowError {
@@ -22,7 +22,8 @@ impl std::fmt::Display for ShadowError {
         writeln!(
             f,
             "error occurred at line {}, character {}.",
-            self.pos.line + 1, self.pos.column + 1
+            self.span.line + 1,
+            self.span.column + 1
         )?;
         Ok(())
     }
@@ -39,13 +40,13 @@ impl ShadowError {
             "{}",
             raw.split('\n')
                 .collect::<Vec<&str>>()
-                .get(self.pos.line as usize)
+                .get(self.span.line as usize)
                 .expect("an error was reported on a line that does not exist")
         );
         println!(
             "{}{} - error occured here!",
-            repeat_char(' ', self.pos.column as usize),
-            repeat_char('^', self.pos.length as usize)
+            repeat_char(' ', self.span.column as usize),
+            repeat_char('^', self.span.length as usize)
         );
         println!("[ .. ]");
     }
@@ -53,7 +54,7 @@ impl ShadowError {
     pub fn new<T: Into<ErrType>>(err: T, line: u64, column: u64, length: u64) -> Self {
         Self {
             ty: err.into(),
-            pos: PosInfo {
+            span: Span {
                 line,
                 column,
                 length,
@@ -61,10 +62,10 @@ impl ShadowError {
         }
     }
 
-    pub fn from_pos<T: Into<ErrType>>(err: T, pos: PosInfo) -> Self {
+    pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
         Self {
             ty: err.into(),
-            pos,
+            span,
         }
     }
 }

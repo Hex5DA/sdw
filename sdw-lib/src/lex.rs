@@ -71,23 +71,22 @@ impl LexemeTypes {
 #[derive(Debug)]
 #[allow(dead_code)] // TODO: remove
 pub struct Lexeme {
-    ty: LexemeTypes,
-    pos: PosInfo,
+    pub ty: LexemeTypes,
+    pub span: Span,
 }
 
 impl Lexeme {
     fn new(lb: &LexBuffer, raw_token: &String) -> Result<Lexeme> {
         let length = raw_token.len() as u64;
-        let pos = PosInfo {
-            line: lb.posinfo.line,
-            column: lb.posinfo.column - length,
+        let span = Span {
+            line: lb.span.line,
+            column: lb.span.column - length,
             length,
         };
-        let ty = LexemeTypes::new(raw_token).ok_or_else(|| ShadowError::from_pos(
-            LexErrors::UnrecognisedToken(raw_token.clone()),
-            pos,
-        ))?;
-        Ok(Lexeme { ty, pos })
+        let ty = LexemeTypes::new(raw_token).ok_or_else(|| {
+            ShadowError::from_pos(LexErrors::UnrecognisedToken(raw_token.clone()), span)
+        })?;
+        Ok(Lexeme { ty, span })
     }
 }
 
@@ -95,20 +94,24 @@ impl Lexeme {
 struct LexBuffer {
     working: String,
     position: usize,
-    posinfo: PosInfo,
+    span: Span,
 }
 
 impl LexBuffer {
     fn adv(&mut self, by: u64) {
         self.position += by as usize;
-        self.posinfo.column += by;
+        self.span.column += by;
     }
 
     fn over(&self) -> char {
-        self.working.chars().nth(self.position).unwrap_or_else(|| panic!("position OOB; ({}/{})\n{:?}",
+        self.working.chars().nth(self.position).unwrap_or_else(|| {
+            panic!(
+                "position OOB; ({}/{})\n{:?}",
                 self.position,
                 self.working.len(),
-                self.working))
+                self.working
+            )
+        })
     }
 
     fn eat(&mut self) -> String {
@@ -126,7 +129,7 @@ pub fn lex(raw: &str) -> Result<Vec<Lexeme>> {
     let mut lb = LexBuffer {
         working: raw.to_owned(),
         position: 0,
-        posinfo: PosInfo::default(),
+        span: Span::default(),
     };
     let mut lexemes: Vec<Lexeme> = Vec::new();
 
@@ -157,8 +160,8 @@ pub fn lex(raw: &str) -> Result<Vec<Lexeme>> {
                 lb.adv(1);
                 // ... but take note of newlines
                 if lb.eat() == "\n" {
-                    lb.posinfo.line += 1;
-                    lb.posinfo.column = 0;
+                    lb.span.line += 1;
+                    lb.span.column = 0;
                 }
             }
             continue;

@@ -27,6 +27,10 @@ fn main() {
     });
 
     println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
-    let ast = sdw_lib::parse::parse(lexemes.into());
+    let ast = sdw_lib::parse::parse(lexemes.into()).unwrap_or_else(|err| {
+        eprintln!("{}", err);
+        err.verbose(&contents);
+        process::exit(1);
+    });
     println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
 }

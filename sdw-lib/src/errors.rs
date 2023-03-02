@@ -16,6 +16,7 @@ impl std::fmt::Display for ShadowError {
             "[SDW E/{}]",
             match self.ty {
                 ErrType::Lex(_) => "L",
+                ErrType::Parse(_) => "P",
             },
         )?;
         writeln!(f, "{}", self.ty)?;
@@ -98,6 +99,7 @@ information needed:
 #[derive(Debug)]
 pub enum ErrType {
     Lex(LexErrors),
+    Parse(ParseErrors),
 }
 
 impl std::fmt::Display for ErrType {
@@ -106,7 +108,8 @@ impl std::fmt::Display for ErrType {
             f,
             "{}",
             match self {
-                Self::Lex(lexerr) => lexerr,
+                Self::Lex(lexerr) => format!("{}", lexerr),
+                Self::Parse(parseerr) => format!("{}", parseerr),
             }
         )
     }
@@ -114,12 +117,24 @@ impl std::fmt::Display for ErrType {
 
 #[derive(Error, Debug)]
 pub enum LexErrors {
-    #[error("an unrecognised token was occured: {0:?}")]
+    #[error("an unrecognised token was occured: '{0}'")]
     UnrecognisedToken(String),
 }
 
 impl From<LexErrors> for ErrType {
     fn from(other: LexErrors) -> ErrType {
         ErrType::Lex(other)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ParseErrors {
+    #[error("an example error to demonstrate how parsing errors will be handled. content: {0}")]
+    Example(String),
+}
+
+impl From<ParseErrors> for ErrType {
+    fn from(other: ParseErrors) -> ErrType {
+        ErrType::Parse(other)
     }
 }

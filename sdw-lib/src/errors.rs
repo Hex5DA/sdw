@@ -36,11 +36,13 @@ fn repeat_char(ch: char, len: usize) -> String {
 
 impl ShadowError {
     pub fn verbose(&self, raw: &str) {
-        println!("[ .. ]");
+        let lines = raw.split('\n').collect::<Vec<&str>>();
+        if self.span.line > 1 {
+            println!("[ .. ]")
+        };
         println!(
             "{}",
-            raw.split('\n')
-                .collect::<Vec<&str>>()
+            lines
                 .get(self.span.line as usize)
                 .expect("an error was reported on a line that does not exist")
         );
@@ -49,25 +51,20 @@ impl ShadowError {
             repeat_char(' ', self.span.column as usize),
             repeat_char('^', self.span.length as usize)
         );
-        println!("[ .. ]");
+        if self.span.line as usize == lines.len() {
+            println!("[ .. ]")
+        };
     }
 
     pub fn new<T: Into<ErrType>>(err: T, line: u64, column: u64, length: u64) -> Self {
         Self {
             ty: err.into(),
-            span: Span {
-                line,
-                column,
-                length,
-            },
+            span: Span { line, column, length },
         }
     }
 
     pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
-        Self {
-            ty: err.into(),
-            span,
-        }
+        Self { ty: err.into(), span }
     }
 }
 
@@ -119,6 +116,8 @@ impl std::fmt::Display for ErrType {
 pub enum LexErrors {
     #[error("an unrecognised token was occured: '{0}'")]
     UnrecognisedToken(String),
+    #[error("an unrecognised type was encountered: '{0}'")]
+    UnrecognisedType(String),
 }
 
 impl From<LexErrors> for ErrType {
@@ -129,8 +128,10 @@ impl From<LexErrors> for ErrType {
 
 #[derive(Error, Debug)]
 pub enum ParseErrors {
-    #[error("an example error to demonstrate how parsing errors will be handled. content: {0}")]
-    Example(String),
+    #[error("the token stack was empty")]
+    TokenStackEmpty,
+    #[error("an unexpected token was encountered: {0} (expected {1})")]
+    UnexpectedTokenEncountered(String, String),
 }
 
 impl From<ParseErrors> for ErrType {

@@ -75,8 +75,8 @@ macro_rules! eat {
                 return Err(ShadowError::from_pos(
                     // TODO: lexeme type pretty printing ("'fn' keyword", "identifier" ect.)
                     ParseErrors::UnexpectedTokenEncountered(
-                        format!("{:?}", lexeme.ty),
-                        stringify!($variant).to_string(),
+                        format!("{}", lexeme.ty),
+                        format!("pattern: {}", stringify!($variant)),
                     ),
                     lexeme.span,
                 ));

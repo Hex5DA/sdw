@@ -4,6 +4,8 @@ use crate::prelude::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use std::fmt::{self, Display};
+
 lazy_static! {
     static ref IDN_RE: Regex = Regex::new(r"[a-zA-Z][a-zA-Z0-9_]*").unwrap();
 }
@@ -25,12 +27,28 @@ impl Keywords {
     }
 }
 
+impl Display for Keywords {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::Fn => "fn",
+            Self::Return => "return",
+        })
+    }
+}
+
 /// structure for holding different literals
 #[derive(Debug)]
 pub enum Literal {
     Integer(i64),
 }
 
+impl Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Self::Integer(i) => i,
+        })
+    }
+}
 /// the master list of possible lexemes.
 #[derive(Debug)]
 pub enum LexemeTypes {
@@ -65,6 +83,38 @@ impl LexemeTypes {
                 }
             }
         })
+    }
+
+    fn verbose(&self) -> String {
+        match self {
+            Self::Keyword(kw) => return format!("keyword '{}'", kw),
+            Self::Literal(lt) => return format!("literal '{}'", lt),
+            Self::Idn(idn) => return format!("identifier '{}'", idn),
+            Self::OpenParen => "opening parenthesis",
+            Self::CloseParen => "closing parenthesis",
+            Self::OpenBrace => "opening brace",
+            Self::CloseBrace => "closing brace",
+            Self::Semicolon => "semicolon",
+        }.to_string()
+    }
+
+    fn short(&self) -> String {
+        match self {
+            Self::Keyword(kw) => return kw.to_string(),
+            Self::Literal(lt) => return lt.to_string(),
+            Self::Idn(idn) => idn.as_str(),
+            Self::OpenParen => "(",
+            Self::CloseParen => ")",
+            Self::OpenBrace => "{",
+            Self::CloseBrace => "}",
+            Self::Semicolon => ";",
+        }.to_string()
+    }
+}
+
+impl Display for LexemeTypes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ('{}')", self.verbose(), self.short())
     }
 }
 

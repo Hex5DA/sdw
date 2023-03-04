@@ -1,5 +1,6 @@
 use crate::common::Span;
 use thiserror::Error;
+use owo_colors::OwoColorize;
 
 pub type Result<T> = std::result::Result<T, ShadowError>;
 
@@ -9,51 +10,57 @@ pub struct ShadowError {
     pub span: Span,
 }
 
-impl std::fmt::Display for ShadowError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "[SDW E/{}]",
-            match self.ty {
-                ErrType::Lex(_) => "L",
-                ErrType::Parse(_) => "P",
-            },
-        )?;
-        writeln!(f, "{}", self.ty)?;
-        writeln!(
-            f,
-            "error occurred at line {}, character {}.",
-            self.span.line + 1,
-            self.span.column + 1
-        )?;
-        Ok(())
-    }
-}
 
 fn repeat_char(ch: char, len: usize) -> String {
     std::iter::repeat(ch).take(len).collect::<String>()
 }
 
 impl ShadowError {
-    pub fn verbose(&self, raw: &str) {
+    fn header(&self) {
+        eprintln!(
+            "{} ",
+            format!(
+            "[SDW E/{}]",
+            match self.ty {
+                ErrType::Lex(_) => "L",
+                ErrType::Parse(_) => "P",
+            },
+            ).red()
+        );
+        eprintln!("{}", self.ty);
+        eprintln!(
+            "{} error occurred at {}, {}.",
+            "->".blue(),
+            ("line ".to_owned() + &(self.span.line + 1).to_string()).blue(),
+            ("character ".to_owned() + &(self.span.column + 1).to_string()).blue()
+        );
+    }
+
+    fn body(&self, raw: &str) {
         let lines = raw.split('\n').collect::<Vec<&str>>();
         if self.span.line > 1 {
-            println!("[ .. ]")
+            eprintln!("[ .. ]")
         };
-        println!(
+        eprintln!(
             "{}",
             lines
                 .get(self.span.line as usize)
-                .expect("an error was reported on a line that does not exist")
+                .expect("an error was reported on a line that does not exist.. somehow")
         );
-        println!(
-            "{}{} - error occured here!",
+        eprintln!(
+            "{}{} {}",
             repeat_char(' ', self.span.column as usize),
-            repeat_char('^', self.span.length as usize)
+            repeat_char('^', self.span.length as usize).red(),
+            "- error occured here!".red()
         );
         if self.span.line as usize == lines.len() {
-            println!("[ .. ]")
+            eprintln!("[ .. ]")
         };
+    }
+
+    pub fn print(&self, raw: &str) {
+        self.header();
+        self.body(raw);
     }
 
     pub fn new<T: Into<ErrType>>(err: T, line: u64, column: u64, length: u64) -> Self {

@@ -34,15 +34,13 @@ fn main() {
     });
 
     let lexemes = sdw_lib::lex::lex(&contents).unwrap_or_else(|err| {
-        eprintln!("{}", err);
-        err.verbose(&contents);
+        err.print(&contents);
         process::exit(1);
     });
 
     println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
     let ast = sdw_lib::parse::parse(lexemes.into()).unwrap_or_else(|err| {
-        eprintln!("{}", err);
-        err.verbose(&contents);
+        err.print(&contents);
         process::exit(1);
     });
 

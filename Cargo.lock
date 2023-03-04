@@ -152,6 +152,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
 
 [[package]]
+name = "owo-colors"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -230,7 +236,6 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "sdw-lib",
- "thiserror",
 ]
 
 [[package]]
@@ -238,6 +243,7 @@ name = "sdw-lib"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
+ "owo-colors",
  "regex",
  "thiserror",
 ]

@@ -26,11 +26,11 @@ fn main() {
         process::exit(1);
     });
 
-    // println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
+    println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
     let ast = sdw_lib::parse::parse(lexemes.into()).unwrap_or_else(|err| {
         eprintln!("{}", err);
         err.verbose(&contents);
         process::exit(1);
     });
-    // println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
+    println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
 }

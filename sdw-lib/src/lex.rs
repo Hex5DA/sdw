@@ -10,8 +10,8 @@ lazy_static! {
     static ref IDN_RE: Regex = Regex::new(r"[a-zA-Z][a-zA-Z0-9_]*").unwrap();
 }
 
-/// sub-enum of lexemes; possible keyword
-#[derive(Debug)]
+/// sub-enum of lexemes; possible keywords
+#[derive(Debug, Clone, Copy)]
 pub enum Keywords {
     Fn,
     Return,
@@ -29,14 +29,19 @@ impl Keywords {
 
 impl Display for Keywords {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Fn => "fn",
-            Self::Return => "return",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Fn => "fn",
+                Self::Return => "return",
+            }
+        )
     }
 }
 
 /// structure for holding different literals
+/// eg. inetger literals: `10`, string literals, `"bobirty"`, ect..
 #[derive(Debug)]
 pub enum Literal {
     Integer(i64),
@@ -44,22 +49,36 @@ pub enum Literal {
 
 impl Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Self::Integer(i) => i,
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Integer(i) => i,
+            }
+        )
     }
 }
 /// the master list of possible lexemes.
 #[derive(Debug)]
 pub enum LexemeTypes {
+    /// see keywords enum; possible keywords
     Keyword(Keywords),
+    /// see literal enum; possible literal values
     Literal(Literal),
+    /// an identifier. must match the regex `[a-zA-Z][a-zA-Z0-9_]*`
     Idn(String),
+    /// (
     OpenParen,
+    /// )
     CloseParen,
+    /// {
     OpenBrace,
+    //// }
     CloseBrace,
+    /// ;
     Semicolon,
+    /// ,
+    Comma,
 }
 
 impl LexemeTypes {
@@ -71,6 +90,7 @@ impl LexemeTypes {
             "{" => OpenBrace,
             "}" => CloseBrace,
             ";" => Semicolon,
+            "," => Comma,
             other => {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)
@@ -84,37 +104,32 @@ impl LexemeTypes {
             }
         })
     }
-
-    fn verbose(&self) -> String {
-        match self {
-            Self::Keyword(kw) => return format!("keyword '{}'", kw),
-            Self::Literal(lt) => return format!("literal '{}'", lt),
-            Self::Idn(idn) => return format!("identifier '{}'", idn),
-            Self::OpenParen => "opening parenthesis",
-            Self::CloseParen => "closing parenthesis",
-            Self::OpenBrace => "opening brace",
-            Self::CloseBrace => "closing brace",
-            Self::Semicolon => "semicolon",
-        }.to_string()
-    }
-
-    fn short(&self) -> String {
-        match self {
-            Self::Keyword(kw) => return kw.to_string(),
-            Self::Literal(lt) => return lt.to_string(),
-            Self::Idn(idn) => idn.as_str(),
-            Self::OpenParen => "(",
-            Self::CloseParen => ")",
-            Self::OpenBrace => "{",
-            Self::CloseBrace => "}",
-            Self::Semicolon => ";",
-        }.to_string()
-    }
 }
 
 impl Display for LexemeTypes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ('{}')", self.verbose(), self.short())
+        let binding; // appeasing the borrow checker.
+        write!(
+            f,
+            "'{}'",
+            match self {
+                Self::Keyword(kw) => {
+                    binding = kw.to_string();
+                    binding.as_str()
+                }
+                Self::Literal(lt) => {
+                    binding = lt.to_string();
+                    binding.as_str()
+                }
+                Self::Idn(idn) => idn.as_str(),
+                Self::OpenParen => "(",
+                Self::CloseParen => ")",
+                Self::OpenBrace => "{",
+                Self::CloseBrace => "}",
+                Self::Semicolon => ";",
+                Self::Comma => ",",
+            }
+        )
     }
 }
 

@@ -21,6 +21,7 @@ pub type LexemeStream = std::collections::VecDeque<Lexeme>;
 // TODO: resarch how to properly represent primitive types. this'll do for now.
 #[derive(Debug)]
 pub enum PrimitiveType {
+    Void,
     Int,
 }
 
@@ -28,6 +29,7 @@ impl PrimitiveType {
     fn from_string(other: String, span: Span) -> Result<PrimitiveType> {
         Ok(match other.as_str() {
             "int" => PrimitiveType::Int,
+            "void" => PrimitiveType::Void,
             _ => {
                 return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span));
             }

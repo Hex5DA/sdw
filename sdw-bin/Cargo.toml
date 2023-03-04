@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.1.6", features = [ "derive" ] }
 sdw-lib = { path = "../sdw-lib/" }
+thiserror = "1.0.38"

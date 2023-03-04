@@ -1,11 +1,11 @@
 use crate::parse::prelude::*;
 use crate::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Parameter {
-    name: String,
-    ty: PrimitiveType,
+    pub name: String,
+    pub ty: PrimitiveType,
     span: Span,
     constructed_from: LexemeStream,
 }
@@ -35,12 +35,12 @@ impl ASTNodeTrait for Parameter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Function {
-    name: String,
-    ty: PrimitiveType,
-    params: Vec<ASTNode<Parameter>>,
+    pub name: String,
+    pub ty: PrimitiveType,
+    pub params: Vec<ASTNode<Parameter>>,
     span: Span,
     constructed_from: LexemeStream,
 }

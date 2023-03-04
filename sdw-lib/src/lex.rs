@@ -42,7 +42,7 @@ impl Display for Keywords {
 
 /// structure for holding different literals
 /// eg. inetger literals: `10`, string literals, `"bobirty"`, ect..
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Integer(i64),
 }
@@ -59,7 +59,7 @@ impl Display for Literal {
     }
 }
 /// the master list of possible lexemes.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LexemeTypes {
     /// see keywords enum; possible keywords
     Keyword(Keywords),
@@ -133,7 +133,7 @@ impl Display for LexemeTypes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)] // TODO: remove
 pub struct Lexeme {
     pub ty: LexemeTypes,

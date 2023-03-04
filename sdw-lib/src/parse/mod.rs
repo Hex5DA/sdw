@@ -1,10 +1,10 @@
 use crate::errors::LexErrors;
 use crate::prelude::*;
 
-mod function;
+pub mod function;
 use function::Function;
 
-mod prelude {
+pub mod prelude {
     pub use super::{ASTNode, ASTNodeTrait, LexemeStream, PrimitiveType};
     pub use crate::errors::ParseErrors;
     pub use crate::{eat, eat_first};
@@ -19,7 +19,7 @@ pub type LexemeStream = std::collections::VecDeque<Lexeme>;
 // type Block = Vec<Node<Statement>>;
 
 // TODO: resarch how to properly represent primitive types. this'll do for now.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PrimitiveType {
     Void,
     Int,
@@ -35,6 +35,13 @@ impl PrimitiveType {
             }
         })
     }
+
+    pub fn ir_type(&self) -> &str {
+        match self {
+            PrimitiveType::Void => "void",
+            PrimitiveType::Int => "i64",
+        }
+    }
 }
 
 pub trait ASTNodeTrait {
@@ -45,15 +52,15 @@ pub trait ASTNodeTrait {
     fn span(&self) -> Span;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct ASTNode<K: ASTNodeTrait> {
+pub struct ASTNode<K: ASTNodeTrait + Clone> {
     span: Span,
     constructed_from: LexemeStream,
-    ty: K,
+    pub ty: K,
 }
 
-impl<K: ASTNodeTrait> ASTNode<K> {
+impl<K: ASTNodeTrait + Clone> ASTNode<K> {
     fn new(lexemes: &mut LexemeStream) -> Result<Self> {
         let inner = <K as ASTNodeTrait>::new(lexemes)?;
         Ok(Self {

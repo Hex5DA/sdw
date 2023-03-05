@@ -38,7 +38,7 @@ fn main() {
         process::exit(1);
     });
 
-    println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
+    // println!("[ DBG ] lexemes recieved;\n{:#?}", lexemes);
     let ast = sdw_lib::parse::parse(lexemes.into()).unwrap_or_else(|err| {
         err.print(&contents);
         process::exit(1);

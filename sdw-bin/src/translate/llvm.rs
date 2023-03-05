@@ -7,7 +7,7 @@ use std::any::Any;
 
 pub fn translate<T, W>(out: &mut W, node: &ASTNode<T>) -> Result<()>
 where
-    T: ASTNodeTrait + Clone + std::fmt::Debug + 'static,
+    T: ASTNodeTrait + 'static,
     W: Write,
 {
     // ASTNode's a generic over function data. we use std::any to somehwat-hackily match
@@ -30,8 +30,12 @@ where
         write!(out, ")")?;
     } else if let Some(param) = any.downcast_ref::<Parameter>() {
         write!(out, "{} {}", param.ty.ir_type(), param.name)?;
+    } else if let Some(block) = any.downcast_ref::<Block>() {
+        for statement in block.statements.iter() {
+            println!("WIP! statement: {:#?}", statement);
+        }
     } else {
-        panic!("a node in the AST was not able to be translated: {:?}", node);
+        panic!("a node in the AST was not able to be translated: {:#?}", node);
     }
     Ok(())
 }

@@ -7,7 +7,6 @@ pub struct Parameter {
     pub name: String,
     pub ty: PrimitiveType,
     span: Span,
-    constructed_from: LexemeStream,
 }
 
 impl ASTNodeTrait for Parameter {
@@ -23,15 +22,11 @@ impl ASTNodeTrait for Parameter {
                 constructed_from.first().unwrap().span,
                 constructed_from.last().unwrap().span,
             ),
-            constructed_from: constructed_from.into(),
         })
     }
 
     fn span(&self) -> Span {
         self.span
-    }
-    fn constructed_from(&self) -> LexemeStream {
-        Vec::new().into()
     }
 }
 
@@ -41,8 +36,8 @@ pub struct Function {
     pub name: String,
     pub ty: PrimitiveType,
     pub params: Vec<ASTNode<Parameter>>,
+    pub body: ASTNode<Block>,
     span: Span,
-    constructed_from: LexemeStream,
 }
 
 impl ASTNodeTrait for Function {
@@ -77,22 +72,20 @@ impl ASTNodeTrait for Function {
         }
 
         eat!(LexemeTypes::CloseParen, lexemes, constructed_from);
+        let body = ASTNode::<Block>::new(lexemes)?;
 
         Ok(Self {
             name: nm,
             params,
             ty,
+            body,
             span: Span::from_to(
                 constructed_from.first().unwrap().span,
                 constructed_from.last().unwrap().span,
             ),
-            constructed_from: constructed_from.into(),
         })
     }
 
-    fn constructed_from(&self) -> LexemeStream {
-        Vec::new().into() // TODO: return constructed from, err. lifetimes
-    }
     fn span(&self) -> Span {
         self.span
     }

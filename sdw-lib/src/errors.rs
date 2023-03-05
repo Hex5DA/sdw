@@ -1,6 +1,6 @@
 use crate::common::Span;
-use thiserror::Error;
 use owo_colors::OwoColorize;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ShadowError>;
 
@@ -10,22 +10,22 @@ pub struct ShadowError {
     pub span: Span,
 }
 
-
 fn repeat_char(ch: char, len: usize) -> String {
     std::iter::repeat(ch).take(len).collect::<String>()
 }
 
 impl ShadowError {
     fn header(&self) {
-        eprintln!(
+        eprint!(
             "{} ",
             format!(
-            "[SDW E/{}]",
-            match self.ty {
-                ErrType::Lex(_) => "L",
-                ErrType::Parse(_) => "P",
-            },
-            ).red()
+                "[SDW E/{}]",
+                match self.ty {
+                    ErrType::Lex(_) => "L",
+                    ErrType::Parse(_) => "P",
+                },
+            )
+            .red()
         );
         eprintln!("{}", self.ty);
         eprintln!(

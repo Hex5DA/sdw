@@ -6,7 +6,7 @@ pub type Result<T> = std::result::Result<T, ShadowError>;
 
 #[derive(Debug)]
 pub struct ShadowError {
-    ty: ErrType,
+    pub ty: ErrType,
     pub span: Span,
 }
 
@@ -139,6 +139,8 @@ pub enum ParseErrors {
     TokenStackEmpty,
     #[error("an unexpected token was encountered: {0} (expected {1})")]
     UnexpectedTokenEncountered(String, String),
+    #[error("the token '{0}' was unrecognised whilst parsing a statement. this error sucks lmao")]
+    UnknownStartOfStatement(crate::lex::LexemeTypes),
 }
 
 impl From<ParseErrors> for ErrType {

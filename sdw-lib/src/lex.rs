@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 /// sub-enum of lexemes; possible keywords
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keywords {
     Fn,
     Return,
@@ -42,7 +42,7 @@ impl Display for Keywords {
 
 /// structure for holding different literals
 /// eg. inetger literals: `10`, string literals, `"bobirty"`, ect..
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Integer(i64),
 }
@@ -59,7 +59,7 @@ impl Display for Literal {
     }
 }
 /// the master list of possible lexemes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexemeTypes {
     /// see keywords enum; possible keywords
     Keyword(Keywords),

@@ -1,135 +1,114 @@
-use crate::errors::LexErrors;
 use crate::prelude::*;
 
-pub mod statements;
-use statements::Block;
-pub mod function;
-pub mod ret;
-
-pub mod prelude {
-    pub use super::{statements::Block, ASTNode, ASTNodeTrait, LexemeStream, PrimitiveType};
-    pub use crate::errors::ParseErrors;
-    pub use crate::{eat, eat_first};
-}
-
-pub type LexemeStream = std::collections::VecDeque<Lexeme>;
-pub type Root = Block;
-
-// TODO: resarch how to properly represent primitive types. this'll do for now.
-#[derive(Debug, Clone)]
-pub enum PrimitiveType {
-    Void,
+#[derive(Debug)]
+pub enum Type {
     Int,
+    Void,
 }
 
-impl PrimitiveType {
-    fn from_string(other: String, span: Span) -> Result<PrimitiveType> {
-        Ok(match other.as_str() {
-            "int" => PrimitiveType::Int,
-            "void" => PrimitiveType::Void,
-            _ => {
-                return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span));
-            }
-        })
-    }
-
-    pub fn ir_type(&self) -> &str {
-        match self {
-            PrimitiveType::Void => "void",
-            PrimitiveType::Int => "i64",
+impl Type {
+    fn from_string(other: String) -> Type {
+        match other.as_str() {
+            "int" => Type::Int,
+            "void" => Type::Void,
+            _ => panic!("TODO(5DA): oopsie doopsie"),
         }
     }
 }
 
-pub trait ASTNodeTrait: Clone + std::fmt::Debug {
-    fn new(lexemes: &mut LexemeStream) -> Result<Self>
-    where
-        Self: Sized;
-    fn span(&self) -> Span;
+#[derive(Debug)]
+pub struct Parameter(String, Type);
+// TODO(5DA): stub
+#[derive(Debug)]
+pub struct Expression(i64);
+
+#[derive(Debug)]
+pub enum Node {
+    Function {
+        params: Vec<Parameter>,
+        name: String,
+        return_ty: Type,
+    },
+    Return {
+        expr: Expression,
+    },
 }
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ASTNode<K: ASTNodeTrait> {
-    span: Span,
-    pub ty: K,
+pub type LexemeStream = std::collections::VecDeque<Lexeme>;
+#[derive(Debug)]
+pub struct Parser {
+    lexemes: LexemeStream,
+    pub ast: Vec<Node>,
 }
 
-impl<K: ASTNodeTrait + Clone> ASTNode<K> {
-    fn new(lexemes: &mut LexemeStream) -> Result<Self> {
-        let inner = <K as ASTNodeTrait>::new(lexemes)?;
-        Ok(Self {
-            span: inner.span(),
-            ty: inner,
-        })
+impl Parser {
+    pub fn new(lexemes: Vec<Lexeme>) -> Self {
+        Self {
+            lexemes: lexemes.into(), ast: Vec::new()
+        }
+    }
+
+    // TODO: errors
+    pub fn consume(&mut self, ty: LexemeTypes) -> Lexeme {
+        let tk = self.lexemes.pop_front().unwrap();
+        if tk.ty == ty {
+            tk
+        } else {
+            panic!("TODO(5DA): wtf is this lol");
+        }
+    }
+
+    pub fn eat_idn(&mut self) -> String {
+        match self.lexemes.pop_front().unwrap().ty {
+            LexemeTypes::Idn(s) => s,
+            _ => panic!("TODO(5DA): ditto lol"),
+        }
+    }
+
+    pub fn eat_expr(&mut self) -> Expression {
+        // TODO(5DA): pratt parsing
+        match self.lexemes.pop_front().unwrap().ty {
+            LexemeTypes::Literal(Literal::Integer(i)) => Expression(i),
+            _ => panic!("TODO(5DA): it just gets worse and worse, hm"),
+        }
+    }
+
+    // TODO(5DA): consider newtyping `Option<()>` here.
+    pub fn parse(&mut self) -> Result<Option<()>> {
+        if self.lexemes.is_empty() {
+            return Ok(None);
+        }
+
+        // TODO(5DA): we're gonna wanna newtype this at some point..
+        let next = self.lexemes.pop_front().unwrap();
+        match next.ty {
+            LexemeTypes::Keyword(kw) => match kw {
+                Keywords::Fn => {
+                    let ty = self.eat_idn();
+                    let nm = self.eat_idn();
+                    self.consume(LexemeTypes::OpenParen);
+                    self.consume(LexemeTypes::CloseParen);
+                    println!("function with name {nm} and type {ty}");
+                    self.ast.push(Node::Function {
+                        params: Vec::new(),
+                        name: nm,
+                        return_ty: Type::from_string(ty),
+                    });
+                },
+                Keywords::Return => {
+                    let v = self.eat_expr();
+                    println!("return statement with value {}", v.0);
+                    self.ast.push(Node::Return {
+                        expr: v,
+                    });
+                },
+            },
+            _ => {}
+        }
+        self.parse()?;
+        Ok(Some(()))
     }
 }
 
-/// add eating of tokens, verifying their type and returning the values
-#[macro_export]
-macro_rules! eat {
-    ( $variant:pat, $then:expr, $lexemes:expr, $constructed_from:expr ) => {{
-        let lexeme = $lexemes.pop_front().ok_or_else(|| {
-            ShadowError::from_pos(ParseErrors::TokenStackEmpty, $constructed_from.last().unwrap_or_else(|| {
-                panic!("whilst parsing, both the lexeme stack and the given 'constructed_from' vector were empty! DBG:\nlexemes: {:?}\nc.f: {:?}", $lexemes, $constructed_from);
-            }).span)
-        })?;
-        let inner = match lexeme.ty {
-            $variant => $then,
-            _ => {
-                return Err(ShadowError::from_pos(
-                    ParseErrors::UnexpectedTokenEncountered(
-                        format!("{}", lexeme.ty),
-                        format!("pattern: {}", stringify!($variant)),
-                    ),
-                    lexeme.span,
-                ));
-            }
-        };
-        $constructed_from.push(lexeme);
-        inner
-    }};
-    ( $variant:pat, $lexemes:expr, $constructed_from:expr ) => {
-        eat!($variant, {}, $lexemes, $constructed_from);
-    };
-}
 
-/// the first lexeme on the stack being passed to a parsing function should always
-/// match the expected value, so we don't need graceful errors & can just .expect it.
-/// this also runs under the assumption that we don't need the first token, because it'll normally
-/// be, eg. `Fn`, `OpenBrace, `If` ect. if i do at some point, that's a problem for future me.
-pub const LEXEMESTREAM_PREVIEW: usize = 5;
-#[macro_export]
-macro_rules! eat_first {
-    ( $variant:pat, $lexemes:expr, $constructed_from:expr, $node_type:literal ) => {{
-        let lexeme = $lexemes.pop_front().expect(
-            format!(
-                "the lexeme stack is empty whilst parsing a/an {}. developer issue!",
-                $node_type
-            )
-            .as_str(),
-        );
-        use $crate::parse::LEXEMESTREAM_PREVIEW;
-        assert!(
-            matches!(lexeme.ty, $variant),
-            "parsing a/an {}, the required intial token ({}) was not present. developer issue! next {} tokens:\n{:#?}",
-            $node_type,
-            stringify!($variant),
-            LEXEMESTREAM_PREVIEW,
-            $lexemes
-                .iter()
-                .take(LEXEMESTREAM_PREVIEW)
-                .map(|lexeme| lexeme.ty.clone())
-                .collect::<Vec<LexemeTypes>>()
-        );
-        $constructed_from.push(lexeme);
-    }};
-}
 
-pub fn parse(mut lexemes: LexemeStream) -> Result<ASTNode<Root>> {
-    let root = Root::root(&mut lexemes)?;
-    Ok(ASTNode::<Root> {
-        span: root.span(),
-        ty: root,
-    })
-}

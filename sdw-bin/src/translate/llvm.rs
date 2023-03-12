@@ -1,41 +1,46 @@
-use sdw_lib::parse::function::{Function, Parameter};
 use sdw_lib::parse::prelude::*;
 
 use std::io::{Result, Write};
 
-use std::any::Any;
-
-pub fn translate<T, W>(out: &mut W, node: &ASTNode<T>) -> Result<()>
-where
-    T: ASTNodeTrait + 'static,
-    W: Write,
-{
-    // ASTNode's a generic over function data. we use std::any to somehwat-hackily match
-    // over the generic values so we can use the data for translation
-    //
-    // this is the ideal case for a macro, but i'm not sure if one exists and i don't want
-    // to have to learn how to make procedural macros just for this function :/
-    let any: Box<dyn Any> = Box::new(node.ty.clone());
-
-    if let Some(fun) = any.downcast_ref::<Function>() {
-        write!(out, "define {} @{}(", fun.ty.ir_type(), fun.name)?;
-        let num_params = fun.params.len();
-        for (idx, param) in fun.params.iter().enumerate() {
-            translate::<Parameter, W>(out, param)?;
-            // slightly ugly; don't append a `,` for the last parameter
-            if idx < num_params - 1 {
-                write!(out, ", ")?;
+pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
+    for node in block {
+        // heh.. heh... . . heh. .   .     .
+        match &**node {
+            Node::Function {
+                return_ty,
+                params,
+                name,
+                body,
+            } => {
+                write!(out, "define {} @{}(", return_ty.ir_type(), name)?;
+                let num_params = params.len();
+                for (idx, param) in params.iter().enumerate() {
+                    write!(out, "{} %{}", param.1.ir_type(), param.0)?;
+                    // slightly ugly; don't append a `,` for the last parameter
+                    if idx < num_params - 1 {
+                        write!(out, ", ")?;
+                    }
+                }
+                write!(out, ")")?;
+                writeln!(out, " {{")?;
+                translate::<W>(out, body)?;
+                writeln!(out, "\n}}")?;
+            }
+            Node::Return {
+                expr,
+            } => {
+                #[allow(clippy::write_literal)]
+                // TODO(5DA): don't hardcode type
+                // TODO(5DA): guarantee `expr` - semantic analysis
+                if let Some(expr) = expr {
+                    write!(out, "  ret {} {}", "i64", expr.0)?;
+                } else {
+                    write!(out, "  ret void")?;
+                }
             }
         }
-        write!(out, ")")?;
-    } else if let Some(param) = any.downcast_ref::<Parameter>() {
-        write!(out, "{} {}", param.ty.ir_type(), param.name)?;
-    } else if let Some(block) = any.downcast_ref::<Block>() {
-        for statement in block.statements.iter() {
-            println!("WIP! statement: {:#?}", statement);
-        }
-    } else {
-        panic!("a node in the AST was not able to be translated: {:#?}", node);
     }
+
     Ok(())
 }
+

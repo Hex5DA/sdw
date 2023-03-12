@@ -3,7 +3,7 @@ use std::process;
 
 use clap::Parser;
 
-// mod translate;
+mod translate;
 
 #[derive(Parser)]
 struct Args {
@@ -38,17 +38,21 @@ fn main() {
         process::exit(1);
     });
 
-    println!("[ DBG ] lexemes recieved\n{}", lexemes.iter().map(|l| l.ty.to_string()).collect::<Vec<String>>().join(" -> "));
-    // let ast = sdw_lib::parse::parse(lexemes.into()).unwrap_or_else(|err| {
-    //     err.print(&contents);
-    //     process::exit(1);
-    // });
-    let mut parser = sdw_lib::parse::Parser::new(lexemes);
-    parser.parse().unwrap();
-    println!("[ DBG ] parser AST:\n{:?}", parser.ast);
+    println!(
+        "[ DBG ] lexemes recieved\n{}",
+        lexemes
+            .iter()
+            .map(|l| l.ty.to_string())
+            .collect::<Vec<String>>()
+            .join(" -> ")
+    );
 
-    /*
+    let ast = sdw_lib::parse::parse(lexemes).unwrap_or_else(|err| {
+        err.print(&contents);
+        process::exit(1);
+    });
     println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
+
     let mut out = File::create(args.out_filename).unwrap_or_else(|err| {
         eprintln!("could not write to file - err: {}", err);
         process::exit(1);
@@ -58,5 +62,4 @@ fn main() {
         eprintln!("error whilst translating the file: {}", err);
         process::exit(1);
     });
-    */
 }

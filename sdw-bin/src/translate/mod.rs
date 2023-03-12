@@ -1,4 +1,4 @@
-use sdw_lib::parse::{ASTNode, Root};
+use sdw_lib::parse::Block;
 
 use std::io::{Result, Write};
 
@@ -8,9 +8,9 @@ pub enum Targets {
     Llvm,
 }
 
-pub fn translate<W: Write>(target: Targets, out: &mut W, ast: ASTNode<Root>) -> Result<()> {
+pub fn translate<W: Write>(target: Targets, out: &mut W, ast: Block) -> Result<()> {
     match target {
-        Targets::Llvm => llvm::translate::<Root, W>(out, &ast),
+        Targets::Llvm => llvm::translate::<W>(out, &ast),
     }?;
 
     writeln!(out)?;

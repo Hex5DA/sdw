@@ -1,4 +1,5 @@
 use crate::common::Span;
+use crate::lex::LexemeTypes;
 use owo_colors::OwoColorize;
 use thiserror::Error;
 
@@ -138,9 +139,11 @@ pub enum ParseErrors {
     #[error("the token stack was empty")]
     TokenStackEmpty,
     #[error("an unexpected token was encountered: {0} (expected {1})")]
-    UnexpectedTokenEncountered(String, String),
-    #[error("the token '{0}' was unrecognised whilst parsing a statement. this error sucks lmao")]
-    UnknownStartOfStatement(crate::lex::LexemeTypes),
+    UnexpectedTokenEncountered(LexemeTypes, LexemeTypes),
+    #[error("unknown start to statement. TODO(5DA): improve this")]
+    ExpectedStatement,
+    #[error("expected an expression, but the given was invalid")]
+    InvalidExpression,
 }
 
 impl From<ParseErrors> for ErrType {

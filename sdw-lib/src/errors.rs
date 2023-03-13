@@ -42,18 +42,21 @@ impl ShadowError {
         if self.span.line > 1 {
             eprintln!("[ .. ]")
         };
-        eprintln!(
-            "{}",
-            lines
-                .get(self.span.line as usize)
-                .expect("an error was reported on a line that does not exist.. somehow")
-        );
-        eprintln!(
-            "{}{} {}",
-            repeat_char(' ', self.span.column as usize),
-            repeat_char('^', self.span.length as usize).red(),
-            "- error occured here!".red()
-        );
+        // idk if this works
+        for line in self.span.line..self.span.end_line {
+            eprintln!(
+                "{}",
+                lines
+                    .get(line as usize)
+                    .expect("an error was reported on a line that does not exist.. somehow")
+            );
+            eprintln!(
+                "{}{} {}",
+                repeat_char(' ', self.span.column as usize),
+                repeat_char('^', (self.span.end_col - self.span.column) as usize).red(),
+                "- error occured here!".red()
+            );
+        }
         if self.span.line as usize == lines.len() {
             eprintln!("[ .. ]")
         };
@@ -64,13 +67,6 @@ impl ShadowError {
         self.body(raw);
     }
 
-    pub fn new<T: Into<ErrType>>(err: T, line: u64, column: u64, length: u64) -> Self {
-        Self {
-            ty: err.into(),
-            span: Span { line, column, length },
-        }
-    }
-
     pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
         Self { ty: err.into(), span }
     }
@@ -78,26 +74,26 @@ impl ShadowError {
 
 /*
 
---
+API:
+ShadowErrorBuilder::new()
+  .set_err(ParseErrors::UnexpectedToken(tk.ty))
+  .set_span(tk.span)
+  .context("parsing function")
+  .add_help("(", tk.span)
+  .add_diagnostic("presumed function definition because of this", fn_kw.span)
+  .help("function definitions expect a parameter list")
+  .build()?;
 
-[E/L] malformed token
+OUTPUT:
 
-unrecognised token '[' - perhaps you meant '('?
-error occured at line 3, character 4.
+[SDW E/P] unexpected token '[' whilst parsing function
+-> error occured at line 1, character 10.
 
-[ .. ]
-fn int main[) {
-           ^^ - error occurred here!
-[ .. ]
-
---
-
-information needed:
-- type of error (parse, lex, IR, semantic)
-- error number
-- error diagnostic
-- error line number / character position
-- access to raw file content
+1 ├─ fn int main[) {
+  |  ^^         ^ - help: perhaps you meant '('?
+  |  |
+  |  ╚  note: presumed function definition because of this.
+  ├─ help: function definitions expect a parameter list
 
 */
 

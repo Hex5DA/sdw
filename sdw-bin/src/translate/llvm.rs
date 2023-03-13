@@ -4,6 +4,8 @@ use std::io::{Result, Write};
 
 pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
     for node in block {
+        // TODO(5DA): remove.
+        #[allow(clippy::write_literal)]
         // heh.. heh... . . heh. .   .     .
         match &**node {
             Node::Function {
@@ -27,7 +29,6 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 writeln!(out, "}}")?;
             }
             Node::Return { expr } => {
-                #[allow(clippy::write_literal)]
                 // TODO(5DA): don't hardcode type
                 // TODO(5DA): guarantee `expr` - semantic analysis
                 if let Some(expr) = expr {

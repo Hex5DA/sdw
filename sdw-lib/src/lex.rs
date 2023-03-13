@@ -153,7 +153,8 @@ impl Lexeme {
         let span = Span {
             line: lb.span.line,
             column: lb.span.column - length,
-            length,
+            end_line: lb.span.line,
+            end_col: lb.span.column - length,
         };
         let ty = LexemeTypes::new(raw_token)
             .ok_or_else(|| ShadowError::from_pos(LexErrors::UnrecognisedToken(raw_token.clone()), span))?;

@@ -3,8 +3,8 @@ use std::process;
 
 use clap::{Parser, Subcommand};
 
-mod translate;
 mod print;
+mod translate;
 
 #[derive(Subcommand)]
 enum Commands {

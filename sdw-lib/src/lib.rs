@@ -9,7 +9,8 @@ mod common {
     pub struct Span {
         pub line: PosInt,
         pub column: PosInt,
-        pub length: PosInt,
+        pub end_col: PosInt,
+        pub end_line: PosInt,
     }
 
     impl Span {
@@ -17,7 +18,8 @@ mod common {
             Span {
                 line: from.line,
                 column: from.column,
-                length: to.column - from.column,
+                end_col: to.column,
+                end_line: to.end_line,
             }
         }
     }

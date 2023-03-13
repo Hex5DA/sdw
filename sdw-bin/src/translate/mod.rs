@@ -2,8 +2,11 @@ use sdw_lib::parse::Block;
 
 use std::io::{Result, Write};
 
+use clap::Subcommand;
+
 mod llvm;
 
+#[derive(Clone, Subcommand)]
 pub enum Targets {
     Llvm,
 }

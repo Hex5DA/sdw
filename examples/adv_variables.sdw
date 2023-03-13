@@ -1,7 +1,0 @@
-fn int main() {
-    var first = 10;
-    var second as int = 5;
-    mut var third = 9;
-    dyn var fourth as int;
-    mut dyn var fifth = 100;
-}

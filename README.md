@@ -15,29 +15,8 @@ Entry point is `fn int main()`.
 Variable declration syntax:
 
 ```
-<mod>* var <name> [as <type>]? = <expr>;
+let <name> = <expr>;
 ```
-
-If the type is specified, `<expr>` should be coerced into `<type>`.
-
-Modifiers:
-
-- `mut` -> Mutable
-- `dyn` -> Dynamic
-
-Variables:
-
-Variables have lifetimes, lasting from creation to deletion.
-
-*Dynamic* variables, declared with the *dyn* keyword, can have 'multiple' lifetimes.
-Ie. only one lifetime at a time, but this lifetime may change, and the parser / semantic
-analyser will determine that this, and give it 'multiple' lifetimes.
-
-Lifetimes declare a variable's type, name and modifiers.
-
-Variables are immutable by default, & their value can't be changed.
-Mutable variables may be declared with the *mut* keyword.
-Their value may change but not their lifetime.
 
 ## TODO
 

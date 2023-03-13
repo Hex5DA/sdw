@@ -21,26 +21,27 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                         write!(out, ", ")?;
                     }
                 }
-                write!(out, ")")?;
-                writeln!(out, " {{")?;
+                write!(out, ") ")?;
+                writeln!(out, "{{")?;
                 translate::<W>(out, body)?;
-                writeln!(out, "\n}}")?;
+                writeln!(out, "}}")?;
             }
-            Node::Return {
-                expr,
-            } => {
+            Node::Return { expr } => {
                 #[allow(clippy::write_literal)]
                 // TODO(5DA): don't hardcode type
                 // TODO(5DA): guarantee `expr` - semantic analysis
                 if let Some(expr) = expr {
-                    write!(out, "  ret {} {}", "i64", expr.0)?;
+                    writeln!(out, "  ret {} {}", "i64", expr.0)?;
                 } else {
-                    write!(out, "  ret void")?;
+                    writeln!(out, "  ret void")?;
                 }
+            }
+            Node::VDec { name, init } => {
+                writeln!(out, "  %{} = alloca {}", name, "i64")?;
+                writeln!(out, "  store {} {}, ptr %{}", "i64", init.0, name)?;
             }
         }
     }
 
     Ok(())
 }
-

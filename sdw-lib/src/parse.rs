@@ -28,11 +28,26 @@ impl Type {
     }
 }
 
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Type::Void => "void",
+            Type::Int => "integer",
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Parameter(pub String, pub Type);
 // TODO(5DA): stub
 #[derive(Debug)]
 pub struct Expression(pub i64);
+
+impl std::fmt::Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "integer literal '{}'", self.0)
+    }
+}
 
 pub type Block = Vec<Box<Node>>;
 #[derive(Debug)]
@@ -45,6 +60,10 @@ pub enum Node {
     },
     Return {
         expr: Option<Expression>,
+    },
+    VDec {
+        name: String,
+        init: Expression,
     },
 }
 
@@ -80,7 +99,7 @@ impl Parser {
     }
 
     pub fn consume(&mut self, ty: LexemeTypes) -> Result<Spanned<Lexeme>> {
-        let tk = self.pop_front()?;
+        let tk = self.pop()?;
         if tk.inner.ty == ty {
             Ok(tk)
         } else {
@@ -101,7 +120,7 @@ impl Parser {
         }
     }
 
-    fn pop_front(&mut self) -> Result<Spanned<Lexeme>> {
+    fn pop(&mut self) -> Result<Spanned<Lexeme>> {
         match self.working.pop_front() {
             Some(l) => Ok(Spanned::from_lexeme(l)),
             None => Err(ShadowError::from_pos(
@@ -112,7 +131,7 @@ impl Parser {
     }
 
     fn eat_idn(&mut self) -> Result<(String, Spanned<Lexeme>)> {
-        let tk = self.pop_front()?;
+        let tk = self.pop()?;
         match tk.inner.ty {
             LexemeTypes::Idn(ref s) => Ok((s.to_owned(), tk)),
             _ => Err(ShadowError::from_pos(
@@ -124,7 +143,7 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Result<Expression> {
         // TODO(5DA): pratt parsing
-        let tk = self.pop_front()?;
+        let tk = self.pop()?;
         match tk.inner.ty {
             LexemeTypes::Literal(Literal::Integer(i)) => Ok(Expression(i)),
             _ => Err(ShadowError::from_pos(ParseErrors::InvalidExpression, tk.span)),
@@ -150,7 +169,7 @@ impl Parser {
             }) = self.working.front()
             {
                 // unwrap() is okay here.
-                self.pop_front().unwrap();
+                self.pop().unwrap();
             } else {
                 break;
             }
@@ -178,6 +197,14 @@ impl Parser {
         Ok(Node::Return { expr })
     }
 
+    fn parse_vdec(&mut self) -> Result<Node> {
+        let (name, _) = self.eat_idn()?;
+        self.consume(LexemeTypes::Equals)?;
+        let init = self.parse_expr()?;
+        self.consume(LexemeTypes::Semicolon)?;
+        Ok(Node::VDec { name, init })
+    }
+
     fn done(&self) -> bool {
         self.working.is_empty()
     }
@@ -191,11 +218,12 @@ fn _parse(parser: &mut Parser) -> Result<Block> {
             break;
         }
 
-        let next = parser.pop_front()?;
+        let next = parser.pop()?;
         let node = match next.inner.ty {
             LexemeTypes::Keyword(kw) => match kw {
                 Keywords::Fn => parser.parse_fndef()?,
                 Keywords::Return => parser.parse_return()?,
+                Keywords::Let => parser.parse_vdec()?,
             },
             LexemeTypes::CloseBrace => unreachable!(),
             _ => unreachable!(),

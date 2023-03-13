@@ -15,6 +15,7 @@ lazy_static! {
 pub enum Keywords {
     Fn,
     Return,
+    Let,
 }
 
 impl Keywords {
@@ -22,6 +23,7 @@ impl Keywords {
         Some(match from {
             "fn" => Keywords::Fn,
             "return" => Keywords::Return,
+            "let" => Keywords::Let,
             _ => return None,
         })
     }
@@ -35,6 +37,7 @@ impl Display for Keywords {
             match self {
                 Self::Fn => "fn",
                 Self::Return => "return",
+                Self::Let => "let",
             }
         )
     }
@@ -79,6 +82,8 @@ pub enum LexemeTypes {
     Semicolon,
     /// ,
     Comma,
+    /// =
+    Equals,
 }
 
 impl LexemeTypes {
@@ -91,6 +96,7 @@ impl LexemeTypes {
             "}" => CloseBrace,
             ";" => Semicolon,
             "," => Comma,
+            "=" => Equals,
             other => {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)
@@ -128,6 +134,7 @@ impl Display for LexemeTypes {
                 Self::CloseBrace => "}",
                 Self::Semicolon => ";",
                 Self::Comma => ",",
+                Self::Equals => "=",
             }
         )
     }

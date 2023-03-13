@@ -1,3 +1,10 @@
 fn int main() {
-    return 1;
+    let a = 1;
+    return 3;
+}
+
+fn void another(int one, int two, int three) {
+    let b = 2;
+    let c = 100;
+    return 8;
 }

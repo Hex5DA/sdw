@@ -1,8 +1,91 @@
+use self::expr::*;
 use crate::errors::{LexErrors, ParseErrors};
 use crate::prelude::*;
 
 pub mod prelude {
-    pub use super::{Block, Expression, Node, Parameter, Spanned, Type};
+    pub use super::expr::{BinOp, Expression};
+    pub use super::{Block, Node, Parameter, Spanned, Type};
+}
+
+pub mod expr {
+    use super::Parser;
+    use crate::prelude::*;
+
+    // a 'lil impl i wrote up to get a grasp on pratt parsing.
+    // <https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=b5dbccaf078a030a6cc3a7b6f3e0bb3b>
+
+    #[derive(Debug)]
+    pub enum Expression {
+        IntLit(i64),
+        BinOp(Box<Expression>, BinOp, Box<Expression>),
+    }
+
+    impl Expression {
+        pub fn stub(&self) -> String { todo!() }
+    }
+
+impl std::fmt::Display for Expression {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+    #[derive(Debug)]
+    pub enum BinOp {
+        Add,
+        Sub,
+        Mul,
+        Div,
+    }
+
+    impl TryInto<BinOp> for LexemeTypes {
+        type Error = ShadowError;
+        fn try_into(self) -> std::result::Result<BinOp, Self::Error> {
+            Ok(match self {
+                LexemeTypes::Cross => BinOp::Add,
+                LexemeTypes::Dash => BinOp::Sub,
+                LexemeTypes::FSlash => BinOp::Div,
+                LexemeTypes::Asterisk => BinOp::Mul,
+                _ => panic!("TODO: return error"),
+            })
+        }
+    }
+
+    impl LexemeTypes {
+        fn prec(&self) -> u64 {
+            match self {
+                LexemeTypes::Cross | LexemeTypes::Dash => 10,
+                LexemeTypes::Asterisk | LexemeTypes::FSlash => 20,
+                _ => 0,
+            }
+        }
+    }
+
+    impl Parser {
+        pub fn parse_expr(&mut self) -> Result<Expression> {
+            self._parse_expr(0)
+        }
+
+        /// for internal use
+        fn _parse_expr(&mut self, rbp: u64) -> Result<Expression> {
+            let mut left = match self.pop()?.inner.ty {
+                LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
+                _ => panic!("TODO: stub; i'm not sure if this is proper, and return error"),
+            };
+            
+            while self.peek()?.inner.ty.prec() > rbp {
+                left = self.parse_binop(left)?;
+            }
+
+            Ok(left)
+        }
+
+        fn parse_binop(&mut self, left: Expression) -> Result<Expression> {
+            let next = self.pop()?.inner.ty;
+            let right = self._parse_expr(next.prec())?;
+            Ok(Expression::BinOp(Box::new(left), next.try_into()?, Box::new(right)))
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -43,15 +126,6 @@ impl std::fmt::Display for Type {
 
 #[derive(Debug)]
 pub struct Parameter(pub String, pub Type);
-// TODO(5DA): stub
-#[derive(Debug)]
-pub struct Expression(pub i64);
-
-impl std::fmt::Display for Expression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "integer literal '{}'", self.0)
-    }
-}
 
 pub type Block = Vec<Box<Node>>;
 #[derive(Debug)]
@@ -142,15 +216,6 @@ impl Parser {
                 ParseErrors::UnexpectedTokenEncountered(tk.inner.ty, LexemeTypes::Idn("<idn>".to_string())),
                 tk.span,
             )),
-        }
-    }
-
-    fn parse_expr(&mut self) -> Result<Expression> {
-        // TODO(5DA): pratt parsing
-        let tk = self.pop()?;
-        match tk.inner.ty {
-            LexemeTypes::Literal(Literal::Integer(i)) => Ok(Expression(i)),
-            _ => Err(ShadowError::from_pos(ParseErrors::InvalidExpression, tk.span)),
         }
     }
 

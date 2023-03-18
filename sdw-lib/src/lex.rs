@@ -84,6 +84,14 @@ pub enum LexemeTypes {
     Comma,
     /// =
     Equals,
+    /// +
+    Cross,
+    /// -
+    Dash,
+    /// /
+    FSlash,
+    /// *
+    Asterisk,
 }
 
 impl LexemeTypes {
@@ -97,6 +105,10 @@ impl LexemeTypes {
             ";" => Semicolon,
             "," => Comma,
             "=" => Equals,
+            "+" => Cross,
+            "-" => Dash,
+            "/" => FSlash,
+            "*" => Asterisk,
             other => {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)
@@ -135,6 +147,10 @@ impl Display for LexemeTypes {
                 Self::Semicolon => ";",
                 Self::Comma => ",",
                 Self::Equals => "=",
+                Self::Cross => "+",
+                Self::Dash => "-",
+                Self::FSlash => "/",
+                Self::Asterisk => "*",
             }
         )
     }

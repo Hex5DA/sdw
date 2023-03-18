@@ -118,7 +118,7 @@ impl std::fmt::Display for ErrType {
 
 #[derive(Error, Debug)]
 pub enum LexErrors {
-    #[error("an unrecognised token was occured: '{0}'")]
+    #[error("unrecognised token encountered: '{0}'")]
     UnrecognisedToken(String),
     #[error("an unrecognised type was encountered: '{0}'")]
     UnrecognisedType(String),

@@ -62,7 +62,7 @@ fn main() {
 
     let ast = sdw_lib::parse::parse(lexemes).unwrap_or_else(|err| {
         err.print(&contents);
-        process::exit(1);
+        process::exit(1)
     });
     println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
 

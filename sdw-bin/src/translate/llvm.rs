@@ -32,14 +32,14 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 // TODO(5DA): don't hardcode type
                 // TODO(5DA): guarantee `expr` - semantic analysis
                 if let Some(expr) = expr {
-                    writeln!(out, "  ret {} {}", "i64", expr.0)?;
+                    writeln!(out, "  ret {} {}", "i64", expr.stub())?;
                 } else {
                     writeln!(out, "  ret void")?;
                 }
             }
             Node::VDec { name, init } => {
                 writeln!(out, "  %{} = alloca {}", name, "i64")?;
-                writeln!(out, "  store {} {}, ptr %{}", "i64", init.0, name)?;
+                writeln!(out, "  store {} {}, ptr %{}", "i64", init.stub(), name)?;
             }
         }
     }

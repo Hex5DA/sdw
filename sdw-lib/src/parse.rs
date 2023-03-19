@@ -3,13 +3,14 @@ use crate::errors::{LexErrors, ParseErrors};
 use crate::prelude::*;
 
 pub mod prelude {
-    pub use super::expr::{BinOp, Expression};
-    pub use super::{Block, Node, Parameter, Spanned, Type};
+    pub use super::expr::Expression;
+    pub use super::{Block, Node, Spanned, Type};
 }
 
 pub mod expr {
-    use super::Parser;
+    use crate::errors::ParseErrors;
     use crate::prelude::*;
+    use super::Parser;
 
     // a 'lil impl i wrote up to get a grasp on pratt parsing.
     // <https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=b5dbccaf078a030a6cc3a7b6f3e0bb3b>
@@ -17,37 +18,27 @@ pub mod expr {
     #[derive(Debug)]
     pub enum Expression {
         IntLit(i64),
-        BinOp(Box<Expression>, BinOp, Box<Expression>),
+        Add(Box<Expression>, Box<Expression>),
+        Sub(Box<Expression>, Box<Expression>),
+        Mul(Box<Expression>, Box<Expression>),
+        Div(Box<Expression>, Box<Expression>),
+        Group(Box<Expression>),
     }
 
     impl Expression {
-        pub fn stub(&self) -> String { todo!() }
-    }
-
-impl std::fmt::Display for Expression {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-    #[derive(Debug)]
-    pub enum BinOp {
-        Add,
-        Sub,
-        Mul,
-        Div,
-    }
-
-    impl TryInto<BinOp> for LexemeTypes {
-        type Error = ShadowError;
-        fn try_into(self) -> std::result::Result<BinOp, Self::Error> {
-            Ok(match self {
-                LexemeTypes::Cross => BinOp::Add,
-                LexemeTypes::Dash => BinOp::Sub,
-                LexemeTypes::FSlash => BinOp::Div,
-                LexemeTypes::Asterisk => BinOp::Mul,
-                _ => panic!("TODO: return error"),
-            })
+        // currently this is just calculating / evaluating
+        pub fn eval(&self) -> i64 {
+            match self {
+                Expression::Add(o1, o2) => o1.eval() + o2.eval(),
+                Expression::Sub(o1, o2) => o1.eval() - o2.eval(),
+                Expression::Mul(o1, o2) => o1.eval() * o2.eval(),
+                Expression::Div(o1, o2) => o1.eval() / o2.eval(),
+                Expression::Group(inner) => inner.eval(),
+                Expression::IntLit(i) => *i,
+            }
+        }
+        pub fn stub(&self) -> String {
+            todo!()
         }
     }
 
@@ -68,22 +59,35 @@ impl std::fmt::Display for Expression {
 
         /// for internal use
         fn _parse_expr(&mut self, rbp: u64) -> Result<Expression> {
-            let mut left = match self.pop()?.inner.ty {
+            let next = self.pop()?;
+            let mut left = match next.inner.ty {
                 LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
-                _ => panic!("TODO: stub; i'm not sure if this is proper, and return error"),
+                LexemeTypes::OpenParen => {
+                    let expr = self.parse_expr()?;
+                    self.consume(LexemeTypes::CloseParen)?;
+                    Expression::Group(Box::new(expr))
+                }
+                ty => return Err(ShadowError::from_pos(ParseErrors::InvalidExpressionLHS(ty), next.span)),
             };
-            
+
             while self.peek()?.inner.ty.prec() > rbp {
-                left = self.parse_binop(left)?;
+                left = self.led(left)?;
             }
 
             Ok(left)
         }
 
-        fn parse_binop(&mut self, left: Expression) -> Result<Expression> {
-            let next = self.pop()?.inner.ty;
-            let right = self._parse_expr(next.prec())?;
-            Ok(Expression::BinOp(Box::new(left), next.try_into()?, Box::new(right)))
+        fn led(&mut self, left: Expression) -> Result<Expression> {
+            let next = self.pop()?;
+            Ok(match next.inner.ty {
+                // WARNING: LOOKING FOR PROLONGED PERIODS WILL CAUSE EYE-BLEED.
+                //          READER DISCRETION ADVISED
+                ty @ LexemeTypes::Cross => Expression::Add(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::Dash => Expression::Sub(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::FSlash => Expression::Div(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::Asterisk => Expression::Mul(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty => return Err(ShadowError::from_pos(ParseErrors::UnknownOperator(ty), next.span)),
+            })
         }
     }
 }
@@ -111,27 +115,11 @@ impl Type {
     }
 }
 
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Type::Void => "void",
-                Type::Int => "integer",
-            }
-        )
-    }
-}
-
-#[derive(Debug)]
-pub struct Parameter(pub String, pub Type);
-
 pub type Block = Vec<Box<Node>>;
 #[derive(Debug)]
 pub enum Node {
     Function {
-        params: Vec<Parameter>,
+        params: Vec<(String, Type)>,
         name: String,
         return_ty: Type,
         body: Block,
@@ -232,7 +220,7 @@ impl Parser {
             // why does rustfmt do this :sob:
             let (ty, ty_l) = self.eat_idn()?;
             let (nm, _nm_l) = self.eat_idn()?;
-            params.push(Parameter(nm, Type::from_string(ty, ty_l.span)?));
+            params.push((nm, Type::from_string(ty, ty_l.span)?));
             if let Some(Lexeme {
                 ty: LexemeTypes::Comma, ..
             }) = self.working.front()
@@ -303,7 +291,7 @@ fn _parse(parser: &mut Parser) -> Result<Block> {
     Ok(block)
 }
 
-// TODO(5DA): update all above to use Spanned<T>, only half implemented
+// TODO: update all above to use Spanned<T>, only half implemented
 
 pub fn parse(lexemes: Vec<Lexeme>) -> Result<Block> {
     let mut parser = Parser::new(lexemes);

@@ -43,7 +43,7 @@ impl ShadowError {
             eprintln!("[ .. ]")
         };
         // idk if this works
-        for line in self.span.line..self.span.end_line {
+        for line in self.span.line..=self.span.end_line {
             eprintln!(
                 "{}",
                 lines
@@ -53,7 +53,7 @@ impl ShadowError {
             eprintln!(
                 "{}{} {}",
                 repeat_char(' ', self.span.column as usize),
-                repeat_char('^', (self.span.end_col - self.span.column) as usize).red(),
+                repeat_char('^', (self.span.end_col - self.span.column + 1) as usize).red(),
                 "- error occured here!".red()
             );
         }
@@ -138,8 +138,10 @@ pub enum ParseErrors {
     UnexpectedTokenEncountered(LexemeTypes, LexemeTypes),
     #[error("unknown start to statement. TODO(5DA): improve this")]
     ExpectedStatement,
-    #[error("expected an expression, but the given was invalid")]
-    InvalidExpression,
+    #[error("invalid LHS in expression - found the token {0}")]
+    InvalidExpressionLHS(LexemeTypes),
+    #[error("and unknown postfix operator was used - {0}")]
+    UnknownOperator(LexemeTypes),
 }
 
 impl From<ParseErrors> for ErrType {

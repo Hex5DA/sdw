@@ -17,11 +17,15 @@ pub mod expr {
 
     #[derive(Debug)]
     pub enum Expression {
+        // literals
         IntLit(i64),
+        Variable(String),
+        // binary operations
         Add(Box<Expression>, Box<Expression>),
         Sub(Box<Expression>, Box<Expression>),
         Mul(Box<Expression>, Box<Expression>),
         Div(Box<Expression>, Box<Expression>),
+        // others
         Group(Box<Expression>),
     }
 
@@ -35,8 +39,11 @@ pub mod expr {
                 Expression::Div(o1, o2) => o1.eval() / o2.eval(),
                 Expression::Group(inner) => inner.eval(),
                 Expression::IntLit(i) => *i,
+                Expression::Variable(name) => panic!("TODO: need to simplify expressions here. {}", name),
             }
         }
+
+        // STUB: using this as a stub so sdw_bin::translate will compile
         pub fn stub(&self) -> String {
             todo!()
         }
@@ -62,6 +69,7 @@ pub mod expr {
             let next = self.pop()?;
             let mut left = match next.inner.ty {
                 LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
+                LexemeTypes::Idn(name) => Expression::Variable(name),
                 LexemeTypes::OpenParen => {
                     let expr = self.parse_expr()?;
                     self.consume(LexemeTypes::CloseParen)?;
@@ -290,8 +298,6 @@ fn _parse(parser: &mut Parser) -> Result<Block> {
 
     Ok(block)
 }
-
-// TODO: update all above to use Spanned<T>, only half implemented
 
 pub fn parse(lexemes: Vec<Lexeme>) -> Result<Block> {
     let mut parser = Parser::new(lexemes);

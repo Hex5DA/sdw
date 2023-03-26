@@ -66,6 +66,13 @@ fn main() {
     });
     println!("[ DBG ] AST built & recieved;\n{:#?}", ast);
 
+    let sem = sdw_lib::sem::semantic(ast).unwrap_or_else(|err| {
+        err.print(&contents);
+        process::exit(1)
+    });
+    println!("[ DBG ] semantic analysis performed;\n{:#?}", sem);
+
+    /*
     match args.command {
         Commands::Compile { target, out_filename } => {
             let mut out = File::create(out_filename).unwrap_or_else(|err| {
@@ -80,4 +87,5 @@ fn main() {
         }
         Commands::Print => print::print(&ast, 0),
     }
+    */
 }

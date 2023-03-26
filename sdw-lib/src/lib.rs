@@ -1,6 +1,7 @@
 pub mod errors;
 pub mod lex;
 pub mod parse;
+pub mod sem;
 
 mod common {
     type PosInt = u64;

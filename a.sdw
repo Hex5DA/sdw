@@ -1,4 +1,3 @@
 fn int main() {
-    let retval = 5;
-    return retval * 3 + 4;
+    return;
 }

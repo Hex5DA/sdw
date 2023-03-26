@@ -8,7 +8,7 @@ pub type Result<T> = std::result::Result<T, ShadowError>;
 #[derive(Debug)]
 pub struct ShadowError {
     pub ty: ErrType,
-    pub span: Span,
+    pub span: Option<Span>,
 }
 
 fn repeat_char(ch: char, len: usize) -> String {
@@ -24,26 +24,30 @@ impl ShadowError {
                 match self.ty {
                     ErrType::Lex(_) => "L",
                     ErrType::Parse(_) => "P",
+                    ErrType::Semantic(_) => "S",
                 },
             )
             .red()
         );
         eprintln!("{}", self.ty);
-        eprintln!(
-            "{} error occurred at {}, {}.",
-            "->".blue(),
-            ("line ".to_owned() + &(self.span.line + 1).to_string()).blue(),
-            ("character ".to_owned() + &(self.span.column + 1).to_string()).blue()
-        );
+        if let Some(span) = self.span {
+            eprintln!(
+                "{} error occurred at {}, {}.",
+                "->".blue(),
+                ("line ".to_owned() + &(span.line + 1).to_string()).blue(),
+                ("character ".to_owned() + &(span.column + 1).to_string()).blue()
+            );
+        }
     }
 
     fn body(&self, raw: &str) {
+        let span = self.span.unwrap(); // `body()` should only be called if a `Span` is present
         let lines = raw.split('\n').collect::<Vec<&str>>();
-        if self.span.line > 1 {
+        if span.line > 1 {
             eprintln!("[ .. ]")
         };
         // idk if this works
-        for line in self.span.line..=self.span.end_line {
+        for line in span.line..=span.end_line {
             eprintln!(
                 "{}",
                 lines
@@ -52,23 +56,35 @@ impl ShadowError {
             );
             eprintln!(
                 "{}{} {}",
-                repeat_char(' ', self.span.column as usize),
-                repeat_char('^', (self.span.end_col - self.span.column + 1) as usize).red(),
+                repeat_char(' ', span.column as usize),
+                repeat_char('^', (span.end_col - span.column + 1) as usize).red(),
                 "- error occured here!".red()
             );
         }
-        if self.span.line as usize == lines.len() {
+        if span.line as usize == lines.len() {
             eprintln!("[ .. ]")
         };
     }
 
     pub fn print(&self, raw: &str) {
         self.header();
-        self.body(raw);
+        if self.span.is_some() {
+            self.body(raw);
+        }
     }
 
     pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
-        Self { ty: err.into(), span }
+        Self {
+            ty: err.into(),
+            span: Some(span),
+        }
+    }
+
+    pub fn brief<T: Into<ErrType>>(err: T) -> Self {
+        Self {
+            ty: err.into(),
+            span: None,
+        }
     }
 }
 
@@ -101,6 +117,7 @@ OUTPUT:
 pub enum ErrType {
     Lex(LexErrors),
     Parse(ParseErrors),
+    Semantic(SemErrors),
 }
 
 impl std::fmt::Display for ErrType {
@@ -111,6 +128,7 @@ impl std::fmt::Display for ErrType {
             match self {
                 Self::Lex(lexerr) => format!("{}", lexerr),
                 Self::Parse(parseerr) => format!("{}", parseerr),
+                Self::Semantic(semerr) => format!("{}", semerr),
             }
         )
     }
@@ -147,5 +165,20 @@ pub enum ParseErrors {
 impl From<ParseErrors> for ErrType {
     fn from(other: ParseErrors) -> ErrType {
         ErrType::Parse(other)
+    }
+}
+
+use crate::parse::Type;
+#[derive(Debug, Error)]
+pub enum SemErrors {
+    #[error("the function's return type ('{0:?}') & the type of returned value ('{1:?}') do not match")]
+    MismatchedFnRetTy(Type, Type),
+    #[error("return statements are only allowed inside of function definitions")]
+    ReturnOutsideFn,
+}
+
+impl From<SemErrors> for ErrType {
+    fn from(other: SemErrors) -> ErrType {
+        ErrType::Semantic(other)
     }
 }

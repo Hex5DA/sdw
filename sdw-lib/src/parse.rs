@@ -8,14 +8,14 @@ pub mod prelude {
 }
 
 pub mod expr {
+    use super::Parser;
     use crate::errors::ParseErrors;
     use crate::prelude::*;
-    use super::Parser;
 
     // a 'lil impl i wrote up to get a grasp on pratt parsing.
     // <https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=b5dbccaf078a030a6cc3a7b6f3e0bb3b>
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum Expression {
         // literals
         IntLit(i64),
@@ -61,11 +61,11 @@ pub mod expr {
 
     impl Parser {
         pub fn parse_expr(&mut self) -> Result<Expression> {
-            self._parse_expr(0)
+            self.nud(0)
         }
 
-        /// for internal use
-        fn _parse_expr(&mut self, rbp: u64) -> Result<Expression> {
+        // idk if this even `nud` following pratt's original terminology lol
+        fn nud(&mut self, rbp: u64) -> Result<Expression> {
             let next = self.pop()?;
             let mut left = match next.inner.ty {
                 LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
@@ -90,17 +90,17 @@ pub mod expr {
             Ok(match next.inner.ty {
                 // WARNING: LOOKING FOR PROLONGED PERIODS WILL CAUSE EYE-BLEED.
                 //          READER DISCRETION ADVISED
-                ty @ LexemeTypes::Cross => Expression::Add(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
-                ty @ LexemeTypes::Dash => Expression::Sub(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
-                ty @ LexemeTypes::FSlash => Expression::Div(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
-                ty @ LexemeTypes::Asterisk => Expression::Mul(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::Cross => Expression::Add(Box::new(left), Box::new(self.nud(ty.prec())?)),
+                ty @ LexemeTypes::Dash => Expression::Sub(Box::new(left), Box::new(self.nud(ty.prec())?)),
+                ty @ LexemeTypes::FSlash => Expression::Div(Box::new(left), Box::new(self.nud(ty.prec())?)),
+                ty @ LexemeTypes::Asterisk => Expression::Mul(Box::new(left), Box::new(self.nud(ty.prec())?)),
                 ty => return Err(ShadowError::from_pos(ParseErrors::UnknownOperator(ty), next.span)),
             })
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Int,
     Void,

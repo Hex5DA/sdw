@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::errors::SemErrors;
 use crate::parse::prelude::*;
 use crate::prelude::*;
@@ -67,50 +69,109 @@ fn convert_ast(ast: Block) -> Vec<SemNode> {
     block
 }
 
+struct Scope {
+    variables: HashMap<String, Type>,
+    /// `SemNode` *must* be a `SemNode::Function`
+    // (sidenote: i _pray_ enum variants as distinct types is added)
+    functions: HashMap<String, SemNode>,
+}
+
+impl Scope {
+    fn from_fn(fndef: SemNode) -> Self {
+        assert!(matches!(fndef, SemNode::Function { .. }));
+        if let SemNode::Function { ref name, .. } = fndef {
+            Self {
+                variables: HashMap::new(),
+                functions: {
+                    let mut hm = HashMap::new();
+                    hm.insert(name.to_string(), fndef);
+                    hm
+                },
+            }
+        } else {
+            panic!("should always be passed a SemNode::Function");
+        }
+    }
+}
+
 struct AnalysisBuffer {
     function: Option<SemNode>,
+    scopes: Vec<Scope>,
 }
 
 impl AnalysisBuffer {
     fn new() -> Self {
-        Self { function: None }
+        Self {
+            function: None,
+            scopes: Vec::new(),
+        }
+    }
+
+    fn analyse_return(&self, expr: &Option<SemExpression>) -> Result<()> {
+        if self.function.is_none() {
+            return Err(ShadowError::brief(SemErrors::ReturnOutsideFn));
+        }
+        if let Some(SemNode::Function { return_ty, .. }) = &self.function {
+            // ewwww
+            match expr {
+                None => {
+                    if *return_ty != Type::Void {
+                        return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
+                            return_ty.clone(),
+                            Type::Void,
+                        )));
+                    }
+                }
+                Some(expr) => {
+                    if *return_ty != expr.ty {
+                        return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
+                            return_ty.clone(),
+                            expr.ty.clone(),
+                        )));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn scope(&mut self) -> Result<&mut Scope> {
+        self.scopes
+            .get_mut(0)
+            .ok_or(ShadowError::brief(SemErrors::CompilerNotInAScope))
     }
 }
+
+fn analyse_expr(buf: &mut AnalysisBuffer, expr: Expression) -> Result<Type> {
+    Ok(match expr {
+        Expression::Variable(name) => buf
+            .scope()?
+            .variables
+            .get(&name)
+            .ok_or(ShadowError::brief(SemErrors::VariableNotFound(name)))?
+            .clone(),
+        _ => Type::Int,
+    })}
 
 fn analyse(buf: &mut AnalysisBuffer, block: &SemBlock) -> Result<()> {
     for node in block {
         match node {
-            SemNode::Function { body, .. } => {
+            SemNode::Function { body, name, .. } => {
+                buf.scopes.push(Scope::from_fn(node.clone()));
                 buf.function = Some(node.clone());
                 analyse(buf, body)?;
+                buf.scope()?.functions.remove(name);
             }
             SemNode::Return { expr, .. } => {
-                if buf.function.is_none() {
-                    return Err(ShadowError::brief(SemErrors::ReturnOutsideFn));
+                if let Some(expr) = expr {
+                    analyse_expr(buf, expr.expr.clone())?;
                 }
-                if let Some(SemNode::Function { return_ty, .. }) = &buf.function {
-                    // ewwww
-                    match expr {
-                        None => {
-                            if *return_ty != Type::Void {
-                                return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
-                                    return_ty.clone(),
-                                    Type::Void,
-                                )));
-                            }
-                        }
-                        Some(expr) => {
-                            if *return_ty != expr.ty {
-                                return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
-                                    return_ty.clone(),
-                                    expr.ty.clone(),
-                                )));
-                            }
-                        }
-                    }
-                }
+                buf.analyse_return(expr)?
+            },
+            SemNode::VDec { name, init } => {
+                analyse_expr(buf, init.expr.clone())?;
+                buf.scope()?.variables.insert(name.to_string(), init.ty.clone());
             }
-            SemNode::VDec { .. } => todo!(),
         }
     }
     Ok(())

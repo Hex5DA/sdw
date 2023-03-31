@@ -1,3 +1,4 @@
 fn int main() {
-    return;
+    let hello = 0;
+    return hello;
 }

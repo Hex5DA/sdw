@@ -175,6 +175,10 @@ pub enum SemErrors {
     MismatchedFnRetTy(Type, Type),
     #[error("return statements are only allowed inside of function definitions")]
     ReturnOutsideFn,
+    #[error("the compiler is not currently in a scope. idk what might cause this actually lol")]
+    CompilerNotInAScope,
+    #[error("the variabled named '{0}' was not defined inside the current scope")]
+    VariableNotFound(String),
 }
 
 impl From<SemErrors> for ErrType {

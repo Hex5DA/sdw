@@ -69,6 +69,7 @@ fn convert_ast(ast: Block) -> Vec<SemNode> {
     block
 }
 
+#[derive(Debug)]
 struct Scope {
     variables: HashMap<String, Type>,
     /// `SemNode` *must* be a `SemNode::Function`
@@ -94,24 +95,25 @@ impl Scope {
     }
 }
 
+#[derive(Debug)]
 struct AnalysisBuffer {
-    function: Option<SemNode>,
+    functions: Vec<SemNode>,
     scopes: Vec<Scope>,
 }
 
 impl AnalysisBuffer {
     fn new() -> Self {
         Self {
-            function: None,
+            functions: Vec::new(),
             scopes: Vec::new(),
         }
     }
 
     fn analyse_return(&self, expr: &Option<SemExpression>) -> Result<()> {
-        if self.function.is_none() {
+        if self.functions.is_empty() {
             return Err(ShadowError::brief(SemErrors::ReturnOutsideFn));
         }
-        if let Some(SemNode::Function { return_ty, .. }) = &self.function {
+        if let SemNode::Function { return_ty, .. } = &self.functions.last().unwrap() {
             // ewwww
             match expr {
                 None => {
@@ -144,30 +146,34 @@ impl AnalysisBuffer {
 
 fn analyse_expr(buf: &mut AnalysisBuffer, expr: Expression) -> Result<Type> {
     Ok(match expr {
-        Expression::Variable(name) => buf
-            .scope()?
-            .variables
-            .get(&name)
-            .ok_or(ShadowError::brief(SemErrors::VariableNotFound(name)))?
-            .clone(),
+        Expression::Variable(name) => {
+            for scope in &buf.scopes {
+                if let Some(ty) = scope.variables.get(&name) {
+                    return Ok(ty.clone());
+                }
+            }
+            return Err(ShadowError::brief(SemErrors::VariableNotFound(name)));
+        }
         _ => Type::Int,
-    })}
+    })
+}
 
 fn analyse(buf: &mut AnalysisBuffer, block: &SemBlock) -> Result<()> {
     for node in block {
         match node {
-            SemNode::Function { body, name, .. } => {
-                buf.scopes.push(Scope::from_fn(node.clone()));
-                buf.function = Some(node.clone());
+            SemNode::Function { body, .. } => {
+                buf.scopes.insert(0, Scope::from_fn(node.clone()));
+                buf.functions.insert(0, node.clone());
                 analyse(buf, body)?;
-                buf.scope()?.functions.remove(name);
+                buf.scopes.remove(0);
+                buf.functions.remove(0);
             }
             SemNode::Return { expr, .. } => {
                 if let Some(expr) = expr {
                     analyse_expr(buf, expr.expr.clone())?;
                 }
                 buf.analyse_return(expr)?
-            },
+            }
             SemNode::VDec { name, init } => {
                 analyse_expr(buf, init.expr.clone())?;
                 buf.scope()?.variables.insert(name.to_string(), init.ty.clone());

@@ -8,8 +8,8 @@ pub mod prelude {
 }
 
 pub mod expr {
-    use crate::errors::ParseErrors;
     use super::{Parser, Spanned};
+    use crate::errors::ParseErrors;
     use crate::prelude::*;
 
     // a 'lil impl i wrote up to get a grasp on pratt parsing.

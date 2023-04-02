@@ -1,4 +1,4 @@
 fn int main() {
-    let v = 5;
+    let v = 10 / 2;
     return v;
 }

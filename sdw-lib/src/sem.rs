@@ -11,7 +11,7 @@ pub struct SemExpression {
 }
 
 impl SemExpression {
-    fn new(expr: Expression) -> Self {
+    pub fn new(expr: Expression) -> Self {
         Self {
             expr,
             // TODO: type resolution

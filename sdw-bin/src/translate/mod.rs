@@ -1,4 +1,4 @@
-use sdw_lib::parse::Block;
+use sdw_lib::consumer::Block;
 
 use std::io::{Result, Write};
 

@@ -6,8 +6,8 @@ use crate::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct SemExpression {
-    expr: Expression,
-    ty: Type,
+    pub expr: Expression,
+    pub ty: Type,
 }
 
 impl SemExpression {

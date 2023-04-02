@@ -1,4 +1,4 @@
-use sdw_lib::parse::prelude::*;
+use sdw_lib::consumer::prelude::*;
 
 use std::io::{Result, Write};
 
@@ -7,7 +7,7 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
         // TODO(5DA): remove.
         #[allow(clippy::write_literal)]
         // heh.. heh... . . heh. .   .     .
-        match &**node {
+        match &*node {
             Node::Function {
                 return_ty,
                 params,
@@ -32,14 +32,14 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 // TODO(5DA): don't hardcode type
                 // TODO(5DA): guarantee `expr` - semantic analysis
                 if let Some(expr) = expr {
-                    writeln!(out, "  ret {} {}", "i64", expr.stub())?;
+                    writeln!(out, "  ret {} {}", "i64", "")?;
                 } else {
                     writeln!(out, "  ret void")?;
                 }
             }
             Node::VDec { name, init } => {
                 writeln!(out, "  %{} = alloca {}", name, "i64")?;
-                writeln!(out, "  store {} {}, ptr %{}", "i64", init.stub(), name)?;
+                writeln!(out, "  store {} {}, ptr %{}", "i64", "", name)?;
             }
         }
     }

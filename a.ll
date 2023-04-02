@@ -1,2 +1,6 @@
 define i64 @main() {
-  %retval = alloca i64
+  %hello = alloca i64
+  store i64 , ptr %hello
+  ret i64 
+}
+

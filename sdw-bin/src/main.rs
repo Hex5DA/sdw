@@ -72,20 +72,18 @@ fn main() {
     });
     println!("[ DBG ] semantic analysis performed;\n{:#?}", sem);
 
-    /*
     match args.command {
         Commands::Compile { target, out_filename } => {
             let mut out = File::create(out_filename).unwrap_or_else(|err| {
-                eprintln!("could not write to file - err: {}", err);
+                eprintln!("could not create the ouput file - err: {}", err);
                 process::exit(1);
             });
 
-            translate::translate(target, &mut out, ast).unwrap_or_else(|err| {
+            translate::translate(target, &mut out, sem).unwrap_or_else(|err| {
                 eprintln!("error whilst translating the file: {}", err);
                 process::exit(1);
             });
         }
-        Commands::Print => print::print(&ast, 0),
+        Commands::Print => print::print(&sem, 0),
     }
-    */
 }

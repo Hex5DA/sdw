@@ -1,4 +1,4 @@
-use sdw_lib::parse::prelude::*;
+use sdw_lib::consumer::prelude::*;
 
 fn print_idn(string: String, idn: u64) {
     println!("{}├ {}", "│ ".repeat(idn as usize), string);
@@ -14,7 +14,7 @@ fn type_disp(ty: &Type) -> String {
 
 pub fn print(block: &Block, idn: u64) {
     for node in block {
-        match &**node {
+        match &*node {
             Node::Function {
                 name,
                 params,
@@ -41,14 +41,14 @@ pub fn print(block: &Block, idn: u64) {
                 print_idn("return statement".to_string(), idn);
                 if let Some(expr) = expr {
                     print_idn(
-                        format!("with return expression evaluating to '{}'", expr.eval()),
+                        format!("with return expression evaluating to '{}'", expr.expr.eval()),
                         idn + 1,
                     );
                 }
             }
             Node::VDec { name, init } => {
                 print_idn(format!("variable '{}' declared", name), idn);
-                print_idn(format!("given intialiser that evaluates to '{};", init.eval()), idn + 1);
+                print_idn(format!("given intialiser that evaluates to '{};", init.expr.eval()), idn + 1);
             }
         }
     }

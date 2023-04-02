@@ -48,7 +48,10 @@ pub fn print(block: &Block, idn: u64) {
             }
             Node::VDec { name, init } => {
                 print_idn(format!("variable '{}' declared", name), idn);
-                print_idn(format!("given intialiser that evaluates to '{};", init.expr.eval()), idn + 1);
+                print_idn(
+                    format!("given intialiser that evaluates to '{};", init.expr.eval()),
+                    idn + 1,
+                );
             }
         }
     }

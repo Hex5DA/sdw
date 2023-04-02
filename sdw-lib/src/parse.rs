@@ -8,8 +8,8 @@ pub mod prelude {
 }
 
 pub mod expr {
-    use super::Parser;
     use crate::errors::ParseErrors;
+    use super::{Parser, Spanned};
     use crate::prelude::*;
 
     // a 'lil impl i wrote up to get a grasp on pratt parsing.
@@ -19,13 +19,13 @@ pub mod expr {
     pub enum Expression {
         // literals
         IntLit(i64),
-        Variable(String),
         // binary operations
         Add(Box<Expression>, Box<Expression>),
         Sub(Box<Expression>, Box<Expression>),
         Mul(Box<Expression>, Box<Expression>),
         Div(Box<Expression>, Box<Expression>),
         // others
+        Variable(String),
         Group(Box<Expression>),
     }
 
@@ -42,11 +42,6 @@ pub mod expr {
                 Expression::Variable(name) => panic!("TODO: need to simplify expressions here. {}", name),
             }
         }
-
-        // STUB: using this as a stub so sdw_bin::translate will compile
-        pub fn stub(&self) -> String {
-            todo!()
-        }
     }
 
     impl LexemeTypes {
@@ -61,13 +56,21 @@ pub mod expr {
 
     impl Parser {
         pub fn parse_expr(&mut self) -> Result<Expression> {
-            self.nud(0)
+            self._parse_expr(0)
         }
 
-        // idk if this even `nud` following pratt's original terminology lol
-        fn nud(&mut self, rbp: u64) -> Result<Expression> {
+        fn _parse_expr(&mut self, rbp: u64) -> Result<Expression> {
             let next = self.pop()?;
-            let mut left = match next.inner.ty {
+            let mut left = self.nud(next)?;
+            while self.peek()?.inner.ty.prec() > rbp {
+                left = self.led(left)?;
+            }
+
+            Ok(left)
+        }
+
+        fn nud(&mut self, next: Spanned<Lexeme>) -> Result<Expression> {
+            Ok(match next.inner.ty {
                 LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
                 LexemeTypes::Idn(name) => Expression::Variable(name),
                 LexemeTypes::OpenParen => {
@@ -76,13 +79,7 @@ pub mod expr {
                     Expression::Group(Box::new(expr))
                 }
                 ty => return Err(ShadowError::from_pos(ParseErrors::InvalidExpressionLHS(ty), next.span)),
-            };
-
-            while self.peek()?.inner.ty.prec() > rbp {
-                left = self.led(left)?;
-            }
-
-            Ok(left)
+            })
         }
 
         fn led(&mut self, left: Expression) -> Result<Expression> {
@@ -90,10 +87,10 @@ pub mod expr {
             Ok(match next.inner.ty {
                 // WARNING: LOOKING FOR PROLONGED PERIODS WILL CAUSE EYE-BLEED.
                 //          READER DISCRETION ADVISED
-                ty @ LexemeTypes::Cross => Expression::Add(Box::new(left), Box::new(self.nud(ty.prec())?)),
-                ty @ LexemeTypes::Dash => Expression::Sub(Box::new(left), Box::new(self.nud(ty.prec())?)),
-                ty @ LexemeTypes::FSlash => Expression::Div(Box::new(left), Box::new(self.nud(ty.prec())?)),
-                ty @ LexemeTypes::Asterisk => Expression::Mul(Box::new(left), Box::new(self.nud(ty.prec())?)),
+                ty @ LexemeTypes::Cross => Expression::Add(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::Dash => Expression::Sub(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::FSlash => Expression::Div(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
+                ty @ LexemeTypes::Asterisk => Expression::Mul(Box::new(left), Box::new(self._parse_expr(ty.prec())?)),
                 ty => return Err(ShadowError::from_pos(ParseErrors::UnknownOperator(ty), next.span)),
             })
         }
@@ -113,13 +110,6 @@ impl Type {
             "void" => Type::Void,
             _ => return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span)),
         })
-    }
-
-    pub fn ir_type(&self) -> &str {
-        match self {
-            Type::Void => "void",
-            Type::Int => "i64",
-        }
     }
 }
 

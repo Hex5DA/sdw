@@ -1,4 +1,6 @@
 fn int main() {
-    let hello = 0;
-    return hello;
+    let v = 5;
+    let b = v;
+    let c = b;
+    return c;
 }

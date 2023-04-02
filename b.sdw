@@ -1,0 +1,4 @@
+fn int main() {
+    let v = 5;
+    return v;
+}

@@ -46,11 +46,11 @@ impl Display for Keywords {
 /// structure for holding different literals
 /// eg. inetger literals: `10`, string literals, `"bobirty"`, ect..
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Literal {
+pub enum Literals {
     Integer(i64),
 }
 
-impl Display for Literal {
+impl Display for Literals {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -67,7 +67,7 @@ pub enum LexemeTypes {
     /// see keywords enum; possible keywords
     Keyword(Keywords),
     /// see literal enum; possible literal values
-    Literal(Literal),
+    Literal(Literals),
     /// an identifier. must match the regex `[a-zA-Z][a-zA-Z0-9_]*`
     Idn(String),
     /// (
@@ -113,7 +113,7 @@ impl LexemeTypes {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)
                 } else if let Ok(num) = other.parse::<i64>() {
-                    Literal(self::Literal::Integer(num))
+                    Literal(self::Literals::Integer(num))
                 } else if IDN_RE.is_match(other) {
                     Idn(other.to_string())
                 } else {
@@ -260,4 +260,32 @@ pub fn lex(raw: &str) -> Result<Vec<Lexeme>> {
     }
 
     Ok(lexemes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LexemeTypes::*;
+    use super::*;
+
+    #[test]
+    fn fn_dec() {
+        let input = "fn int main() {\n    return 4;\n}";
+        let lexemes = lex(input);
+        assert!(lexemes.is_ok(), "error in the lexer");
+        assert_eq!(
+            lexemes.unwrap().iter().map(|l| l.ty.clone()).collect::<Vec<LexemeTypes>>(),
+            vec![
+                Keyword(Keywords::Fn),
+                Idn("int".to_string()),
+                Idn("main".to_string()),
+                OpenParen,
+                CloseParen,
+                OpenBrace,
+                Keyword(Keywords::Return),
+                Literal(Literals::Integer(4)),
+                Semicolon,
+                CloseBrace
+            ]
+        );
+    }
 }

@@ -92,7 +92,7 @@ pub mod prelude {
     use super::*;
     pub use common::Span;
     pub use errors::{Result, ShadowError};
-    pub use lex::{Keywords, Lexeme, LexemeTypes, Literal};
+    pub use lex::{Keywords, Lexeme, LexemeTypes, Literals};
 }
 
 pub mod consumer {

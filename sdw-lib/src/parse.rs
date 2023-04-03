@@ -56,7 +56,7 @@ pub mod expr {
 
         fn nud(&mut self, next: Spanned<Lexeme>) -> Result<Expression> {
             Ok(match next.inner.ty {
-                LexemeTypes::Literal(Literal::Integer(n)) => Expression::IntLit(n),
+                LexemeTypes::Literal(Literals::Integer(n)) => Expression::IntLit(n),
                 LexemeTypes::Idn(name) => Expression::Variable(name),
                 LexemeTypes::OpenParen => {
                     let expr = self.parse_expr()?;

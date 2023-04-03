@@ -1,4 +1,0 @@
-fn int main() {
-    var val = 5;
-    return val;
-}

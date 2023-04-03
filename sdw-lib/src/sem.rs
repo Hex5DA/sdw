@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::errors::SemErrors;
 use crate::parse::prelude::*;
 use crate::prelude::*;
 
+/*
 #[derive(Debug, Clone)]
 pub struct SemExpression {
     pub expr: Expression,
@@ -179,10 +180,146 @@ fn analyse(buf: &mut AnalysisBuffer, block: &SemBlock) -> Result<()> {
     }
     Ok(())
 }
+*/
 
-pub fn semantic(ast: Block) -> Result<Vec<SemNode>> {
-    let ast = convert_ast(ast);
-    let mut buf = AnalysisBuffer::new();
-    analyse(&mut buf, &ast)?;
+pub struct AnalysedExpression;
+
+struct Scope {
+    functions: HashMap<String, SyntaxNode>,
+    variables: HashMap<String, Type>,
+}
+
+impl Scope {
+    fn from_fn(fndef: SyntaxNode) -> Self {
+        if let SyntaxNode {
+            ty: SyntaxNodeType::Function { ref name, .. },
+            ..
+        } = fndef
+        {
+            Self {
+                variables: HashMap::new(),
+                functions: {
+                    let mut hm = HashMap::new();
+                    hm.insert(name.inner.clone(), fndef);
+                    hm
+                },
+            }
+        } else {
+            unreachable!()
+        }
+    }
+}
+
+struct SemanticBuffer {
+    functions: VecDeque<SyntaxNode>,
+    scopes: VecDeque<Scope>,
+}
+
+impl SemanticBuffer {
+    fn new() -> Self {
+        Self {
+            functions: VecDeque::new(),
+            scopes: VecDeque::new(),
+        }
+    }
+}
+
+pub type AbstractBlock = Vec<AbstractNode>;
+
+#[derive(Debug, Clone)]
+pub enum AbstractNodeType {
+    Function {
+        name: Spanned<String>,
+        params: Vec<(Spanned<Type>, Spanned<String>)>,
+        rty: Spanned<Type>,
+        body: AbstractBlock,
+    },
+    Return {
+        expr: Option<Spanned<Expression>>,
+    },
+    VDec {
+        name: Spanned<String>,
+        init: Spanned<Expression>,
+    },
+}
+
+impl AbstractNode {
+    fn new(ty: AbstractNodeType, span: Span) -> Self {
+        Self { ty, span }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AbstractNode {
+    pub ty: AbstractNodeType,
+    // this *might* not be necessary
+    // but i'm keeping it incase i want to add a new compiler stage ^^
+    span: Span,
+}
+
+fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBlock> {
+    let mut analysed_block = Vec::new();
+    for node in block {
+        analysed_block.push(match node.ty {
+            SyntaxNodeType::Function {
+                ref body,
+                ref rty,
+                ref params,
+                ref name,
+            } => {
+                sb.functions.push_front(node.clone());
+                sb.scopes.push_front(Scope::from_fn(node.clone()));
+
+                let body = _semantic(sb, body.to_vec())?;
+                let rty = Spanned::new(rty.span, Type::from_string(rty.inner.clone(), rty.span)?);
+                let mut nparams: Vec<(Spanned<Type>, Spanned<String>)> = Vec::new();
+                for (t, s) in params {
+                    nparams.push((
+                        Spanned::new(t.span, Type::from_string(t.inner.clone(), t.span)?),
+                        s.clone(),
+                    ));
+                }
+
+                sb.functions.pop_front();
+                sb.scopes.pop_front();
+
+                AbstractNode::new(
+                    AbstractNodeType::Function {
+                        body,
+                        rty,
+                        params: nparams,
+                        name: name.clone(),
+                    },
+                    node.span,
+                )
+            }
+            SyntaxNodeType::Return { expr } => {
+                // TODO: return ty validation
+                if let Some(inner) = expr.inner {
+                    AbstractNode::new(
+                        AbstractNodeType::Return {
+                            expr: Some(Spanned::new(expr.span, inner)),
+                        },
+                        expr.span,
+                    )
+                } else {
+                    AbstractNode::new(AbstractNodeType::Return { expr: None }, expr.span)
+                }
+            }
+            SyntaxNodeType::VDec { name, init } => AbstractNode::new(
+                AbstractNodeType::VDec {
+                    name: name.clone(),
+                    init: init.clone(),
+                },
+                node.span,
+            ),
+        });
+    }
+    Ok(analysed_block)
+}
+
+pub fn semantic(ast: SyntaxBlock) -> Result<AbstractBlock> {
+    let mut buf = SemanticBuffer::new();
+    let ast = _semantic(&mut buf, ast)?;
     Ok(ast)
 }

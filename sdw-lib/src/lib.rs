@@ -1,9 +1,11 @@
 pub mod errors;
 pub mod lex;
 pub mod parse;
-// pub mod sem;
+pub mod sem;
 
 mod common {
+    use crate::errors::{LexErrors, Result, ShadowError};
+
     type PosInt = u64;
 
     #[derive(Debug, Clone, Copy, Default)]
@@ -22,6 +24,34 @@ mod common {
                 end_col: to.column,
                 end_line: to.end_line,
             }
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct Spanned<T> {
+        pub inner: T,
+        pub span: Span,
+    }
+
+    impl<T> Spanned<T> {
+        pub fn new(span: Span, inner: T) -> Self {
+            Self { span, inner }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum Type {
+        Int,
+        Void,
+    }
+
+    impl Type {
+        pub fn from_string(other: String, span: Span) -> Result<Type> {
+            Ok(match other.as_str() {
+                "int" => Type::Int,
+                "void" => Type::Void,
+                _ => return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span)),
+            })
         }
     }
 }
@@ -90,19 +120,20 @@ pub mod mangle {
 
 pub mod prelude {
     use super::*;
-    pub use common::Span;
+    pub use common::{Span, Spanned};
     pub use errors::{Result, ShadowError};
     pub use lex::{Keywords, Lexeme, LexemeTypes, Literals};
 }
 
 pub mod consumer {
-    use crate::sem::{SemBlock, SemNode};
-    pub type Block = SemBlock;
-    pub type Node = SemNode;
+    use crate::sem::{AbstractBlock, AbstractNode};
+    pub type Block = AbstractBlock;
+    pub type Node = AbstractNode;
 
     pub mod prelude {
         pub use super::*;
-        // pub use crate::parse::{expr::Expression, Type};
-        pub use crate::sem::SemExpression;
+        pub use crate::common::Type;
+        pub use crate::parse::expr::Expression;
+        pub use crate::sem::AnalysedExpression;
     }
 }

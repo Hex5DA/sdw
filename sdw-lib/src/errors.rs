@@ -166,7 +166,7 @@ impl From<ParseErrors> for ErrType {
     }
 }
 
-use crate::parse::Type;
+use crate::common::Type;
 #[derive(Debug, Error)]
 pub enum SemErrors {
     #[error("the function's return type ('{0:?}') & the type of returned value ('{1:?}') do not match")]

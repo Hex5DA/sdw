@@ -3,10 +3,10 @@ use std::process;
 
 use clap::{Parser, Subcommand};
 
-mod print;
-mod translate;
+// mod print;
+// mod translate;
 
-#[derive(Subcommand)]
+/*#[derive(Subcommand)]
 enum Commands {
     Compile {
         #[command(subcommand)]
@@ -16,13 +16,13 @@ enum Commands {
         out_filename: String,
     },
     Print,
-}
+}*/
 
 #[derive(Parser)]
 struct Args {
     /// the operation to run
-    #[command(subcommand)]
-    command: Commands,
+    // #[command(subcommand)]
+    // command: Commands,
     /// the file to read from
     #[arg(value_parser = port_in_range)]
     filename: String,
@@ -72,6 +72,7 @@ fn main() {
     });
     println!("[ DBG ] semantic analysis performed;\n{:#?}", sem);
 
+    /*
     match args.command {
         Commands::Compile { target, out_filename } => {
             let mut out = File::create(out_filename).unwrap_or_else(|err| {
@@ -86,4 +87,5 @@ fn main() {
         }
         Commands::Print => print::print(&sem, 0),
     }
+    */
 }

@@ -1,4 +1,4 @@
-use crate::errors::{LexErrors, ParseErrors};
+use crate::errors::ParseErrors;
 use crate::prelude::*;
 
 pub mod expr;
@@ -6,47 +6,34 @@ use expr::*;
 
 pub mod prelude {
     pub use super::expr::Expression;
-    pub use super::{SyntaxBlock, SyntaxNode, Type};
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type {
-    Int,
-    Void,
-}
-
-impl Type {
-    fn from_string(other: String, span: Span) -> Result<Type> {
-        Ok(match other.as_str() {
-            "int" => Type::Int,
-            "void" => Type::Void,
-            _ => return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span)),
-        })
-    }
+    pub use super::{SyntaxBlock, SyntaxNode, SyntaxNodeType};
+    pub use crate::common::Type;
 }
 
 pub type LexemeStream = std::collections::VecDeque<Lexeme>;
 pub type SyntaxBlock = Vec<SyntaxNode>;
 
+#[derive(Debug, Clone)]
 pub enum SyntaxNodeType {
     Function {
-        name: String,
-        params: Vec<(String, String)>,
-        return_ty: String,
+        name: Spanned<String>,
+        params: Vec<(Spanned<String>, Spanned<String>)>,
+        rty: Spanned<String>,
         body: SyntaxBlock,
     },
     Return {
-        expr: Option<Expression>
+        expr: Spanned<Option<Expression>>,
     },
     VDec {
-        init: Expression,
-        name: String,
-    }
+        init: Spanned<Expression>,
+        name: Spanned<String>,
+    },
 }
 
+#[derive(Debug, Clone)]
 pub struct SyntaxNode {
-    ty: SyntaxNodeType,
-    span: Span,
+    pub ty: SyntaxNodeType,
+    pub span: Span,
 }
 
 impl SyntaxNode {
@@ -54,7 +41,6 @@ impl SyntaxNode {
         SyntaxNode { span, ty }
     }
 }
-
 
 #[derive(Debug)]
 pub struct ParseBuffer {
@@ -70,7 +56,7 @@ impl ParseBuffer {
             lexemes,
         }
     }
-    
+
     fn done(&self) -> bool {
         self.working.is_empty()
     }
@@ -121,7 +107,7 @@ impl ParseBuffer {
     fn parse_fndef(&mut self) -> Result<SyntaxNode> {
         let start = self.consume(LexemeTypes::Keyword(Keywords::Fn))?.span;
         let (ty, ty_l) = self.eat_idn()?;
-        let (nm, _nm_l) = self.eat_idn()?;
+        let (nm, nm_l) = self.eat_idn()?;
         self.consume(LexemeTypes::OpenParen)?;
         let mut params = Vec::new();
         while let Some(Lexeme {
@@ -130,9 +116,9 @@ impl ParseBuffer {
         }) = self.working.front()
         {
             // why does rustfmt do this :sob:
-            let (ty, _ty_l) = self.eat_idn()?;
-            let (nm, _nm_l) = self.eat_idn()?;
-            params.push((nm, ty));
+            let (ty, ty_l) = self.eat_idn()?;
+            let (nm, nm_l) = self.eat_idn()?;
+            params.push((Spanned::new(ty_l.span, ty), Spanned::new(nm_l.span, nm)));
             if let Some(Lexeme {
                 ty: LexemeTypes::Comma, ..
             }) = self.working.front()
@@ -150,8 +136,8 @@ impl ParseBuffer {
         Ok(SyntaxNode::new(
             SyntaxNodeType::Function {
                 params,
-                name: nm,
-                return_ty: ty,
+                name: Spanned::new(nm_l.span, nm),
+                rty: Spanned::new(ty_l.span, ty),
                 body,
             },
             Span::from_to(start, end),
@@ -162,26 +148,40 @@ impl ParseBuffer {
         let span = self.consume(LexemeTypes::Keyword(Keywords::Return))?.span;
         let mut expr = None;
 
-        if let Lexeme { ty: LexemeTypes::Semicolon, .. } = self.peek()? {
+        if let Lexeme {
+            ty: LexemeTypes::Semicolon,
+            ..
+        } = self.peek()?
+        {
         } else {
             expr = Some(self.parse_expr()?);
         }
 
         self.consume(LexemeTypes::Semicolon)?;
-        Ok(SyntaxNode::new(SyntaxNodeType::Return { expr }, Span::from_to(span, span)))
+        Ok(SyntaxNode::new(
+            // TODO: get the expression's span
+            SyntaxNodeType::Return {
+                expr: Spanned::new(span, expr),
+            },
+            Span::from_to(span, span),
+        ))
     }
-    
+
     fn parse_vdec(&mut self) -> Result<SyntaxNode> {
-        let start = self.consume(LexemeTypes::Keyword(Keywords::Return))?.span;
-        let (name, _) = self.eat_idn()?;
-        self.consume(LexemeTypes::Equals)?;
+        let start = self.consume(LexemeTypes::Keyword(Keywords::Let))?.span;
+        let (name, nm_l) = self.eat_idn()?;
+        let todo_temp = self.consume(LexemeTypes::Equals)?.span;
+        // TODO: get expression's span
         let init = self.parse_expr()?;
         let end = self.consume(LexemeTypes::Semicolon)?.span;
 
-        Ok(SyntaxNode::new(SyntaxNodeType::VDec {
-            init,
-            name
-        }, Span::from_to(start, end)))
+        Ok(SyntaxNode::new(
+            SyntaxNodeType::VDec {
+                init: Spanned::new(todo_temp, init),
+                name: Spanned::new(nm_l.span, name),
+            },
+            Span::from_to(start, end),
+        ))
     }
 }
 

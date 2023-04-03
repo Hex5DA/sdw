@@ -154,8 +154,6 @@ pub enum ParseErrors {
     TokenStackEmpty,
     #[error("an unexpected token was encountered: {0} (expected {1})")]
     UnexpectedTokenEncountered(LexemeTypes, LexemeTypes),
-    #[error("unknown start to statement. TODO(5DA): improve this")]
-    ExpectedStatement,
     #[error("invalid LHS in expression - found the token {0}")]
     InvalidExpressionLHS(LexemeTypes),
     #[error("and unknown postfix operator was used - {0}")]

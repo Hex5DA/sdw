@@ -54,11 +54,7 @@ fn convert_ast(ast: Block) -> Vec<SemNode> {
                 body: convert_ast(body),
             },
             Node::Return { expr } => SemNode::Return {
-                expr: if let Some(expr) = expr {
-                    Some(SemExpression::new(expr))
-                } else {
-                    None
-                },
+                expr: expr.map(SemExpression::new),
             },
             Node::VDec { name, init } => SemNode::VDec {
                 name,
@@ -70,6 +66,7 @@ fn convert_ast(ast: Block) -> Vec<SemNode> {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Scope {
     variables: HashMap<String, Type>,
     /// `SemNode` *must* be a `SemNode::Function`
@@ -140,7 +137,7 @@ impl AnalysisBuffer {
     fn scope(&mut self) -> Result<&mut Scope> {
         self.scopes
             .get_mut(0)
-            .ok_or(ShadowError::brief(SemErrors::CompilerNotInAScope))
+            .ok_or_else(|| ShadowError::brief(SemErrors::CompilerNotInAScope))
     }
 }
 

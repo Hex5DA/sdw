@@ -14,7 +14,7 @@ fn type_disp(ty: &Type) -> String {
 
 pub fn print(block: &Block, idn: u64) {
     for node in block {
-        match &*node {
+        match node {
             Node::Function {
                 name,
                 params,
@@ -37,21 +37,10 @@ pub fn print(block: &Block, idn: u64) {
                 }
                 print(body, idn + 1);
             }
-            Node::Return { expr } => {
-                print_idn("return statement".to_string(), idn);
-                if let Some(expr) = expr {
-                    print_idn(
-                        format!("with return expression evaluating to '{}'", expr.expr.eval()),
-                        idn + 1,
-                    );
-                }
-            }
-            Node::VDec { name, init } => {
+            Node::Return { .. } => print_idn("return statement".to_string(), idn),
+            Node::VDec { name, .. } => {
                 print_idn(format!("variable '{}' declared", name), idn);
-                print_idn(
-                    format!("given intialiser that evaluates to '{};", init.expr.eval()),
-                    idn + 1,
-                );
+                print_idn("given an intialiser".to_string(), idn + 1);
             }
         }
     }

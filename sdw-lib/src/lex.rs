@@ -157,7 +157,6 @@ impl Display for LexemeTypes {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // TODO: remove
 pub struct Lexeme {
     pub ty: LexemeTypes,
     pub span: Span,

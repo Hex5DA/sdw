@@ -29,21 +29,6 @@ pub mod expr {
         Group(Box<Expression>),
     }
 
-    impl Expression {
-        // currently this is just calculating / evaluating
-        pub fn eval(&self) -> i64 {
-            match self {
-                Expression::Add(o1, o2) => o1.eval() + o2.eval(),
-                Expression::Sub(o1, o2) => o1.eval() - o2.eval(),
-                Expression::Mul(o1, o2) => o1.eval() * o2.eval(),
-                Expression::Div(o1, o2) => o1.eval() / o2.eval(),
-                Expression::Group(inner) => inner.eval(),
-                Expression::IntLit(i) => *i,
-                Expression::Variable(name) => panic!("TODO: need to simplify expressions here. {}", name),
-            }
-        }
-    }
-
     impl LexemeTypes {
         fn prec(&self) -> u64 {
             match self {

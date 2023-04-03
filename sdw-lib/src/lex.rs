@@ -273,7 +273,11 @@ mod tests {
         let lexemes = lex(input);
         assert!(lexemes.is_ok(), "error in the lexer");
         assert_eq!(
-            lexemes.unwrap().iter().map(|l| l.ty.clone()).collect::<Vec<LexemeTypes>>(),
+            lexemes
+                .unwrap()
+                .iter()
+                .map(|l| l.ty.clone())
+                .collect::<Vec<LexemeTypes>>(),
             vec![
                 Keyword(Keywords::Fn),
                 Idn("int".to_string()),

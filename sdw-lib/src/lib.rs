@@ -1,7 +1,7 @@
 pub mod errors;
 pub mod lex;
 pub mod parse;
-pub mod sem;
+// pub mod sem;
 
 mod common {
     type PosInt = u64;
@@ -102,7 +102,7 @@ pub mod consumer {
 
     pub mod prelude {
         pub use super::*;
-        pub use crate::parse::{expr::Expression, Type};
+        // pub use crate::parse::{expr::Expression, Type};
         pub use crate::sem::SemExpression;
     }
 }

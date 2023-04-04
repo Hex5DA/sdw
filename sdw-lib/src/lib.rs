@@ -41,8 +41,9 @@ mod common {
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum Type {
-        Int,
         Void,
+        Bool,
+        Int,
     }
 
     impl Type {
@@ -50,6 +51,7 @@ mod common {
             Ok(match other.as_str() {
                 "int" => Type::Int,
                 "void" => Type::Void,
+                "bool" => Type::Bool,
                 _ => return Err(ShadowError::from_pos(LexErrors::UnrecognisedType(other), span)),
             })
         }
@@ -134,6 +136,6 @@ pub mod consumer {
         pub use super::*;
         pub use crate::common::Type;
         pub use crate::parse::expr::Expression;
-        pub use crate::sem::AnalysedExpression;
+        pub use crate::sem::AbstractExpression;
     }
 }

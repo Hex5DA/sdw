@@ -48,6 +48,7 @@ impl Display for Keywords {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Literals {
     Integer(i64),
+    Boolean(bool),
 }
 
 impl Display for Literals {
@@ -56,7 +57,8 @@ impl Display for Literals {
             f,
             "{}",
             match self {
-                Self::Integer(i) => i,
+                Self::Integer(i) => i.to_string(),
+                Self::Boolean(b) => b.to_string(),
             }
         )
     }
@@ -109,6 +111,8 @@ impl LexemeTypes {
             "-" => Dash,
             "/" => FSlash,
             "*" => Asterisk,
+            "false" => Literal(Literals::Boolean(false)),
+            "true" => Literal(Literals::Boolean(true)),
             other => {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)

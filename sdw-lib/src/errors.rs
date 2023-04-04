@@ -8,7 +8,7 @@ pub type Result<T> = std::result::Result<T, ShadowError>;
 #[derive(Debug)]
 pub struct ShadowError {
     pub ty: ErrType,
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 fn repeat_char(ch: char, len: usize) -> String {
@@ -30,24 +30,21 @@ impl ShadowError {
             .red()
         );
         eprintln!("{}", self.ty);
-        if let Some(span) = self.span {
-            eprintln!(
-                "{} error occurred at {}, {}.",
-                "->".blue(),
-                ("line ".to_owned() + &(span.line + 1).to_string()).blue(),
-                ("character ".to_owned() + &(span.column + 1).to_string()).blue()
-            );
-        }
+        eprintln!(
+            "{} error occurred at {}, {}.",
+            "->".blue(),
+            ("line ".to_owned() + &(self.span.line + 1).to_string()).blue(),
+            ("character ".to_owned() + &(self.span.column + 1).to_string()).blue()
+        );
     }
 
     fn body(&self, raw: &str) {
-        let span = self.span.unwrap(); // `body()` should only be called if a `Span` is present
         let lines = raw.split('\n').collect::<Vec<&str>>();
-        if span.line > 1 {
+        if self.span.line > 1 {
             eprintln!("[ .. ]")
         };
         // idk if this works
-        for line in span.line..=span.end_line {
+        for line in self.span.line..=self.span.end_line {
             eprintln!(
                 "{}",
                 lines
@@ -56,35 +53,23 @@ impl ShadowError {
             );
             eprintln!(
                 "{}{} {}",
-                repeat_char(' ', span.column as usize),
-                repeat_char('^', (span.end_col - span.column + 1) as usize).red(),
+                repeat_char(' ', self.span.column as usize),
+                repeat_char('^', (self.span.end_col - self.span.column + 1) as usize).red(),
                 "- error occured here!".red()
             );
         }
-        if span.line as usize == lines.len() {
+        if self.span.line as usize == lines.len() {
             eprintln!("[ .. ]")
         };
     }
 
     pub fn print(&self, raw: &str) {
         self.header();
-        if self.span.is_some() {
-            self.body(raw);
-        }
+        self.body(raw);
     }
 
     pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
-        Self {
-            ty: err.into(),
-            span: Some(span),
-        }
-    }
-
-    pub fn brief<T: Into<ErrType>>(err: T) -> Self {
-        Self {
-            ty: err.into(),
-            span: None,
-        }
+        Self { ty: err.into(), span }
     }
 }
 
@@ -171,6 +156,8 @@ use crate::common::Type;
 pub enum SemErrors {
     #[error("the function's return type ('{0:?}') & the type of returned value ('{1:?}') do not match")]
     MismatchedFnRetTy(Type, Type),
+    #[error("the following 2 types in the expression do not match: '{0:?}' & '{1:?}'")]
+    MismatchedTypes(Type, Type),
     #[error("return statements are only allowed inside of function definitions")]
     ReturnOutsideFn,
     #[error("the compiler is not currently in a scope. idk what might cause this actually lol")]

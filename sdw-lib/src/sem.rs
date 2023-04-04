@@ -4,185 +4,34 @@ use crate::errors::SemErrors;
 use crate::parse::prelude::*;
 use crate::prelude::*;
 
-/*
 #[derive(Debug, Clone)]
-pub struct SemExpression {
-    pub expr: Expression,
-    pub ty: Type,
+pub enum AbstractExpressionType {
+    IntLit(i64),
+    BoolLit(bool),
+    Variable(String),
+    Add(AbstractExpression, AbstractExpression),
+    Sub(AbstractExpression, AbstractExpression),
+    Mul(AbstractExpression, AbstractExpression),
+    Div(AbstractExpression, AbstractExpression),
+    Group(AbstractExpression),
 }
 
-impl SemExpression {
-    pub fn new(expr: Expression) -> Self {
-        Self {
-            expr,
-            // TODO: type resolution
-            ty: Type::Int,
-        }
-    }
-}
-
-pub type SemBlock = Vec<SemNode>;
 #[derive(Debug, Clone)]
-pub enum SemNode {
-    Function {
-        params: Vec<(String, Type)>,
-        name: String,
-        return_ty: Type,
-        body: SemBlock,
-    },
-    Return {
-        expr: Option<SemExpression>,
-    },
-    VDec {
-        name: String,
-        init: SemExpression,
-    },
+pub struct AbstractExpression {
+    expr: Box<AbstractExpressionType>,
+    span: Span,
+    ty: Type,
 }
 
-fn convert_ast(ast: Block) -> Vec<SemNode> {
-    let mut block = Vec::new();
-    for node in ast {
-        block.push(match *node {
-            Node::Function {
-                params,
-                name,
-                return_ty,
-                body,
-            } => SemNode::Function {
-                params,
-                name,
-                return_ty,
-                body: convert_ast(body),
-            },
-            Node::Return { expr } => SemNode::Return {
-                expr: expr.map(SemExpression::new),
-            },
-            Node::VDec { name, init } => SemNode::VDec {
-                name,
-                init: SemExpression::new(init),
-            },
-        });
-    }
-    block
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-struct Scope {
-    variables: HashMap<String, Type>,
-    /// `SemNode` *must* be a `SemNode::Function`
-    // (sidenote: i _pray_ enum variants as distinct types is added)
-    functions: HashMap<String, SemNode>,
-}
-
-impl Scope {
-    fn from_fn(fndef: SemNode) -> Self {
-        assert!(matches!(fndef, SemNode::Function { .. }));
-        if let SemNode::Function { ref name, .. } = fndef {
-            Self {
-                variables: HashMap::new(),
-                functions: {
-                    let mut hm = HashMap::new();
-                    hm.insert(name.to_string(), fndef);
-                    hm
-                },
-            }
-        } else {
-            panic!("should always be passed a SemNode::Function");
-        }
-    }
-}
-
-#[derive(Debug)]
-struct AnalysisBuffer {
-    functions: Vec<SemNode>,
-    scopes: Vec<Scope>,
-}
-
-impl AnalysisBuffer {
-    fn new() -> Self {
+impl AbstractExpression {
+    fn new(expr: AbstractExpressionType, span: Span, ty: Type) -> Self {
         Self {
-            functions: Vec::new(),
-            scopes: Vec::new(),
+            expr: Box::new(expr),
+            span,
+            ty,
         }
-    }
-
-    fn analyse_return(&self, expr: &Option<SemExpression>) -> Result<()> {
-        if self.functions.is_empty() {
-            return Err(ShadowError::brief(SemErrors::ReturnOutsideFn));
-        }
-        if let SemNode::Function { return_ty, .. } = &self.functions.last().unwrap() {
-            // ewwww
-            match expr {
-                None => {
-                    if *return_ty != Type::Void {
-                        return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
-                            return_ty.clone(),
-                            Type::Void,
-                        )));
-                    }
-                }
-                Some(expr) => {
-                    if *return_ty != expr.ty {
-                        return Err(ShadowError::brief(SemErrors::MismatchedFnRetTy(
-                            return_ty.clone(),
-                            expr.ty.clone(),
-                        )));
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn scope(&mut self) -> Result<&mut Scope> {
-        self.scopes
-            .get_mut(0)
-            .ok_or_else(|| ShadowError::brief(SemErrors::CompilerNotInAScope))
     }
 }
-
-fn analyse_expr(buf: &mut AnalysisBuffer, expr: Expression) -> Result<Type> {
-    Ok(match expr {
-        Expression::Variable(name) => {
-            for scope in &buf.scopes {
-                if let Some(ty) = scope.variables.get(&name) {
-                    return Ok(ty.clone());
-                }
-            }
-            return Err(ShadowError::brief(SemErrors::VariableNotFound(name)));
-        }
-        _ => Type::Int,
-    })
-}
-
-fn analyse(buf: &mut AnalysisBuffer, block: &SemBlock) -> Result<()> {
-    for node in block {
-        match node {
-            SemNode::Function { body, .. } => {
-                buf.scopes.insert(0, Scope::from_fn(node.clone()));
-                buf.functions.insert(0, node.clone());
-                analyse(buf, body)?;
-                buf.scopes.remove(0);
-                buf.functions.remove(0);
-            }
-            SemNode::Return { expr, .. } => {
-                if let Some(expr) = expr {
-                    analyse_expr(buf, expr.expr.clone())?;
-                }
-                buf.analyse_return(expr)?
-            }
-            SemNode::VDec { name, init } => {
-                analyse_expr(buf, init.expr.clone())?;
-                buf.scope()?.variables.insert(name.to_string(), init.ty.clone());
-            }
-        }
-    }
-    Ok(())
-}
-*/
-
-pub struct AnalysedExpression;
 
 struct Scope {
     functions: HashMap<String, SyntaxNode>,
@@ -222,6 +71,12 @@ impl SemanticBuffer {
             scopes: VecDeque::new(),
         }
     }
+
+    fn scope(&mut self, span: Span) -> Result<&mut Scope> {
+        self.scopes
+            .get_mut(0)
+            .ok_or_else(|| ShadowError::from_pos(SemErrors::CompilerNotInAScope, span))
+    }
 }
 
 pub type AbstractBlock = Vec<AbstractNode>;
@@ -235,11 +90,11 @@ pub enum AbstractNodeType {
         body: AbstractBlock,
     },
     Return {
-        expr: Option<Spanned<Expression>>,
+        expr: Option<AbstractExpression>,
     },
     VDec {
         name: Spanned<String>,
-        init: Spanned<Expression>,
+        init: AbstractExpression,
     },
 }
 
@@ -255,6 +110,44 @@ pub struct AbstractNode {
     // this *might* not be necessary
     // but i'm keeping it incase i want to add a new compiler stage ^^
     span: Span,
+}
+
+macro_rules! translate_binop {
+    ( $o1:ident, $o2:ident, $sb:ident, $span:ident, $expr:expr) => {{
+        let o1 = expression($sb, *$o1, $span)?;
+        let o2 = expression($sb, *$o2, $span)?;
+
+        if o1.ty != o2.ty {
+            return Err(ShadowError::from_pos(SemErrors::MismatchedTypes(o1.ty, o2.ty), $span));
+        }
+
+        let ty = o1.ty.clone();
+        AbstractExpression::new($expr(o1, o2), $span, ty)
+    }};
+}
+
+fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<AbstractExpression> {
+    Ok(match expr {
+        Expression::BoolLit(bl) => AbstractExpression::new(AbstractExpressionType::BoolLit(bl), span, Type::Bool),
+        Expression::IntLit(il) => AbstractExpression::new(AbstractExpressionType::IntLit(il), span, Type::Int),
+        Expression::Add(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Add),
+        Expression::Sub(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Sub),
+        Expression::Mul(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Mul),
+        Expression::Div(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Div),
+        Expression::Group(gp) => expression(sb, *gp, span)?,
+        Expression::Variable(name) => {
+            for scope in &sb.scopes {
+                if let Some(ty) = scope.variables.get(&name) {
+                    return Ok(AbstractExpression::new(
+                        AbstractExpressionType::Variable(name),
+                        span,
+                        ty.clone(),
+                    ));
+                }
+            }
+            return Err(ShadowError::from_pos(SemErrors::VariableNotFound(name), span));
+        }
+    })
 }
 
 fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBlock> {
@@ -294,27 +187,59 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                 )
             }
             SyntaxNodeType::Return { expr } => {
-                // TODO: return ty validation
-                if let Some(inner) = expr.inner {
-                    AbstractNode::new(
-                        AbstractNodeType::Return {
-                            expr: Some(Spanned::new(expr.span, inner)),
-                        },
-                        expr.span,
-                    )
+                // pretend you can't see the RTYV here :vomit:
+                if sb.functions.is_empty() {
+                    return Err(ShadowError::from_pos(SemErrors::ReturnOutsideFn, node.span));
+                }
+
+                let rty = if let SyntaxNode {
+                    ty: SyntaxNodeType::Function { rty, .. },
+                    ..
+                } = sb.functions.iter().last().unwrap()
+                {
+                    Type::from_string(rty.inner.clone(), rty.span)?
                 } else {
+                    unreachable!()
+                };
+
+                if let Some(inner) = expr.inner {
+                    let inner = expression(sb, inner, expr.span)?;
+                    if rty != inner.ty {
+                        return Err(ShadowError::from_pos(
+                            SemErrors::MismatchedFnRetTy(rty.clone(), inner.ty.clone()),
+                            expr.span,
+                        ));
+                    }
+
+                    AbstractNode::new(AbstractNodeType::Return { expr: Some(inner) }, expr.span)
+                } else {
+                    if rty != Type::Void {
+                        return Err(ShadowError::from_pos(
+                            SemErrors::MismatchedFnRetTy(rty.clone(), Type::Void),
+                            expr.span,
+                        ));
+                    }
+
                     AbstractNode::new(AbstractNodeType::Return { expr: None }, expr.span)
                 }
             }
-            SyntaxNodeType::VDec { name, init } => AbstractNode::new(
-                AbstractNodeType::VDec {
-                    name: name.clone(),
-                    init: init.clone(),
-                },
-                node.span,
-            ),
+            SyntaxNodeType::VDec { name, init } => {
+                let expr = expression(sb, init.inner, init.span)?;
+                sb.scope(init.span)?
+                    .variables
+                    .insert(name.inner.clone(), expr.ty.clone());
+
+                AbstractNode::new(
+                    AbstractNodeType::VDec {
+                        name: name.clone(),
+                        init: expr,
+                    },
+                    node.span,
+                )
+            }
         });
     }
+
     Ok(analysed_block)
 }
 

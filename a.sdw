@@ -1,4 +1,5 @@
-fn int main(int a, int b) {
-    let a = 4;
-    return a;
+fn bool main() {
+    let robert = 3;
+    let a = 4 + robert;
+    return true;
 }

@@ -9,6 +9,7 @@ use crate::prelude::*;
 pub enum Expression {
     // literals
     IntLit(i64),
+    BoolLit(bool),
     // binary operations
     Add(Box<Expression>, Box<Expression>),
     Sub(Box<Expression>, Box<Expression>),
@@ -46,7 +47,10 @@ impl ParseBuffer {
 
     fn nud(&mut self, next: Lexeme) -> Result<Expression> {
         Ok(match next.ty {
-            LexemeTypes::Literal(Literals::Integer(n)) => Expression::IntLit(n),
+            LexemeTypes::Literal(l) => match l {
+                Literals::Boolean(b) => Expression::BoolLit(b),
+                Literals::Integer(n) => Expression::IntLit(n),
+            },
             LexemeTypes::Idn(name) => Expression::Variable(name),
             LexemeTypes::OpenParen => {
                 let expr = self.parse_expr()?;

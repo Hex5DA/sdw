@@ -134,7 +134,11 @@ fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<A
         Expression::Sub(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Sub),
         Expression::Mul(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Mul),
         Expression::Div(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Div),
-        Expression::Group(gp) => expression(sb, *gp, span)?,
+        Expression::Group(gp) => {
+            let expr = expression(sb, *gp, span)?;
+            let ty = expr.ty.clone();
+            AbstractExpression::new(AbstractExpressionType::Group(expr), span, ty)
+        }
         Expression::Variable(name) => {
             for scope in &sb.scopes {
                 if let Some(ty) = scope.variables.get(&name) {
@@ -188,18 +192,13 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
             }
             SyntaxNodeType::Return { expr } => {
                 // pretend you can't see the RTYV here :vomit:
-                if sb.functions.is_empty() {
-                    return Err(ShadowError::from_pos(SemErrors::ReturnOutsideFn, node.span));
-                }
-
-                let rty = if let SyntaxNode {
-                    ty: SyntaxNodeType::Function { rty, .. },
-                    ..
-                } = sb.functions.iter().last().unwrap()
-                {
-                    Type::from_string(rty.inner.clone(), rty.span)?
-                } else {
-                    unreachable!()
+                let rty = match sb.functions.iter().last() {
+                    Some(SyntaxNode {
+                        ty: SyntaxNodeType::Function { rty, .. },
+                        ..
+                    }) => Type::from_string(rty.inner.clone(), rty.span)?,
+                    Some(_) => unreachable!(),
+                    None => return Err(ShadowError::from_pos(SemErrors::ReturnOutsideFn, node.span)),
                 };
 
                 if let Some(inner) = expr.inner {

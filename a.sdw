@@ -1,5 +1,4 @@
-fn int main() {
-    let bobirty = 3;
-    let a = 4 + bobirty;
+fn bool main() {
+    let a = false;
     return a;
 }

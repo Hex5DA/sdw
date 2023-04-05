@@ -18,8 +18,6 @@ macro_rules! binop_translate {
         let temp_tag = mangle_va(format!("_{}t", $char));
         let o1_tag = translate_expr($out, &$o1.clone())?;
         let o2_tag = translate_expr($out, &$o2.clone())?;
-        // let o1_tag = translate_expr($out, &SemExpression::new(*$o1.clone()))?;
-        // let o2_tag = translate_expr($out, &SemExpression::new(*$o2.clone()))?;
         writeln!(
             $out,
             "  %{} = {} {} {}, {}",
@@ -36,7 +34,7 @@ macro_rules! binop_translate {
 fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
     Ok(match &*expr.expr {
         ExpressionType::IntLit(il) => il.to_string(),
-        ExpressionType::BoolLit(bl) => bl.to_string(),
+        ExpressionType::BoolLit(bl) => (*bl as u8).to_string(),
         ExpressionType::Variable(nm) => {
             writeln!(out, "  ; dereferencing '{}'", nm)?;
             let tv_name = mangle_va(nm.to_string());
@@ -53,7 +51,7 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
         ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
         ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
         ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
-        ExpressionType::Group(_) => todo!(), // ExpressionType::Group(gr) => translate_expr(out, &Expression::new(*gr.clone()))?,
+        ExpressionType::Group(gr) => translate_expr(out, gr)?,
     })
 }
 

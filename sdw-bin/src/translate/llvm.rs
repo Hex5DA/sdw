@@ -53,8 +53,7 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
         ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
         ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
         ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
-        ExpressionType::Group(_) => todo!()
-        // ExpressionType::Group(gr) => translate_expr(out, &Expression::new(*gr.clone()))?,
+        ExpressionType::Group(_) => todo!(), // ExpressionType::Group(gr) => translate_expr(out, &Expression::new(*gr.clone()))?,
     })
 }
 
@@ -78,12 +77,12 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 }
                 write!(out, ") ")?;
                 writeln!(out, "{{")?;
-                translate::<W>(out, &body)?;
+                translate::<W>(out, body)?;
                 writeln!(out, "}}")?;
             }
             NodeType::Return { expr } => {
                 if let Some(expr) = expr {
-                    let tag = translate_expr(out, &expr)?;
+                    let tag = translate_expr(out, expr)?;
                     writeln!(out, "  ret {} {}", type_to_ir(&expr.ty), tag)?;
                 } else {
                     writeln!(out, "  ret void")?;
@@ -93,7 +92,7 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 writeln!(out, "  ; allocating '{}'", name.inner)?;
                 let tag = mangle_va(name.inner.clone());
                 writeln!(out, "  %{} = alloca {}", tag, type_to_ir(&init.ty),)?;
-                let val_tag = translate_expr(out, &init)?;
+                let val_tag = translate_expr(out, init)?;
                 writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&init.ty), val_tag, tag,)?;
             }
         }

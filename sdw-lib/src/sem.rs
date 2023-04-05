@@ -206,7 +206,7 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     let inner = expression(sb, inner, expr.span)?;
                     if rty != inner.ty {
                         return Err(ShadowError::from_pos(
-                            SemErrors::MismatchedFnRetTy(rty.clone(), inner.ty.clone()),
+                            SemErrors::MismatchedFnRetTy(rty, inner.ty),
                             expr.span,
                         ));
                     }
@@ -215,7 +215,7 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                 } else {
                     if rty != Type::Void {
                         return Err(ShadowError::from_pos(
-                            SemErrors::MismatchedFnRetTy(rty.clone(), Type::Void),
+                            SemErrors::MismatchedFnRetTy(rty, Type::Void),
                             expr.span,
                         ));
                     }

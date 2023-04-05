@@ -32,11 +32,16 @@ pub fn print(block: &Block, idn: u64) {
                 );
                 for (idx, pm) in params.iter().enumerate() {
                     print_idn(
-                        format!("- parameter {}: '{}', of type '{}'", idx, pm.1.inner, type_disp(&pm.0.inner)),
+                        format!(
+                            "- parameter {}: '{}', of type '{}'",
+                            idx,
+                            pm.1.inner,
+                            type_disp(&pm.0.inner)
+                        ),
                         idn + 1,
                     );
                 }
-                print(&body, idn + 1);
+                print(body, idn + 1);
             }
             NodeType::Return { .. } => print_idn("return statement".to_string(), idn),
             NodeType::VDec { name, .. } => {

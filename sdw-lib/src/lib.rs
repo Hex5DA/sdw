@@ -128,7 +128,7 @@ pub mod prelude {
 }
 
 pub mod consumer {
-    use crate::sem::{AbstractBlock, AbstractNode, AbstractNodeType, AbstractExpression, AbstractExpressionType};
+    use crate::sem::{AbstractBlock, AbstractExpression, AbstractExpressionType, AbstractNode, AbstractNodeType};
 
     pub type Block = AbstractBlock;
     pub type Node = AbstractNode;
@@ -137,7 +137,7 @@ pub mod consumer {
     pub type ExpressionType = AbstractExpressionType;
 
     pub mod prelude {
-        pub use crate::common::Type;
         pub use super::*;
+        pub use crate::common::Type;
     }
 }

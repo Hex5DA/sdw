@@ -7,6 +7,7 @@ fn type_to_ir(ty: &Type) -> &str {
     match ty {
         Type::Void => "void",
         Type::Int => "i64",
+        Type::Bool => "i1",
     }
 }
 
@@ -15,8 +16,10 @@ fn type_to_ir(ty: &Type) -> &str {
 macro_rules! binop_translate {
     ( $op:literal, $char:literal, $out:ident, $expr:ident, $o1:ident, $o2:ident ) => {{
         let temp_tag = mangle_va(format!("_{}t", $char));
-        let o1_tag = translate_expr($out, &SemExpression::new(*$o1.clone()))?;
-        let o2_tag = translate_expr($out, &SemExpression::new(*$o2.clone()))?;
+        let o1_tag = translate_expr($out, &$o1.clone())?;
+        let o2_tag = translate_expr($out, &$o2.clone())?;
+        // let o1_tag = translate_expr($out, &SemExpression::new(*$o1.clone()))?;
+        // let o2_tag = translate_expr($out, &SemExpression::new(*$o2.clone()))?;
         writeln!(
             $out,
             "  %{} = {} {} {}, {}",
@@ -30,10 +33,11 @@ macro_rules! binop_translate {
     }};
 }
 
-fn translate_expr<W: Write>(out: &mut W, expr: &SemExpression) -> Result<String> {
-    Ok(match &expr.expr {
-        Expression::IntLit(il) => il.to_string(),
-        Expression::Variable(nm) => {
+fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
+    Ok(match &*expr.expr {
+        ExpressionType::IntLit(il) => il.to_string(),
+        ExpressionType::BoolLit(bl) => bl.to_string(),
+        ExpressionType::Variable(nm) => {
             writeln!(out, "  ; dereferencing '{}'", nm)?;
             let tv_name = mangle_va(nm.to_string());
             writeln!(
@@ -45,27 +49,28 @@ fn translate_expr<W: Write>(out: &mut W, expr: &SemExpression) -> Result<String>
             )?;
             format!("%{}", tv_name)
         }
-        Expression::Add(o1, o2) => binop_translate!("add", "a", out, expr, o1, o2),
-        Expression::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
-        Expression::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
-        Expression::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
-        Expression::Group(gr) => translate_expr(out, &SemExpression::new(*gr.clone()))?,
+        ExpressionType::Add(o1, o2) => binop_translate!("add", "a", out, expr, o1, o2),
+        ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
+        ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
+        ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
+        ExpressionType::Group(_) => todo!()
+        // ExpressionType::Group(gr) => translate_expr(out, &Expression::new(*gr.clone()))?,
     })
 }
 
 pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
     for node in block {
-        match node {
-            Node::Function {
-                return_ty,
+        match &node.ty {
+            NodeType::Function {
+                rty,
                 params,
                 name,
                 body,
             } => {
-                write!(out, "define {} @{}(", type_to_ir(return_ty), name)?;
+                write!(out, "define {} @{}(", type_to_ir(&rty.inner), name.inner)?;
                 let num_params = params.len();
                 for (idx, param) in params.iter().enumerate() {
-                    write!(out, "{} %{}", type_to_ir(&param.1), param.0)?;
+                    write!(out, "{} %{}", type_to_ir(&param.0.inner), param.1.inner)?;
                     // slightly ugly; don't append a `,` for the last parameter
                     if idx < num_params - 1 {
                         write!(out, ", ")?;
@@ -73,22 +78,22 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 }
                 write!(out, ") ")?;
                 writeln!(out, "{{")?;
-                translate::<W>(out, body)?;
+                translate::<W>(out, &body)?;
                 writeln!(out, "}}")?;
             }
-            Node::Return { expr } => {
+            NodeType::Return { expr } => {
                 if let Some(expr) = expr {
-                    let tag = translate_expr(out, expr)?;
+                    let tag = translate_expr(out, &expr)?;
                     writeln!(out, "  ret {} {}", type_to_ir(&expr.ty), tag)?;
                 } else {
                     writeln!(out, "  ret void")?;
                 }
             }
-            Node::VDec { name, init } => {
-                writeln!(out, "  ; allocating '{}'", name)?;
-                let tag = mangle_va(name.to_string());
+            NodeType::VDec { name, init } => {
+                writeln!(out, "  ; allocating '{}'", name.inner)?;
+                let tag = mangle_va(name.inner.clone());
                 writeln!(out, "  %{} = alloca {}", tag, type_to_ir(&init.ty),)?;
-                let val_tag = translate_expr(out, init)?;
+                let val_tag = translate_expr(out, &init)?;
                 writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&init.ty), val_tag, tag,)?;
             }
         }

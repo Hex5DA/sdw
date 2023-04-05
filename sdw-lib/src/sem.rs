@@ -18,9 +18,9 @@ pub enum AbstractExpressionType {
 
 #[derive(Debug, Clone)]
 pub struct AbstractExpression {
-    expr: Box<AbstractExpressionType>,
-    span: Span,
-    ty: Type,
+    pub expr: Box<AbstractExpressionType>,
+    pub span: Span,
+    pub ty: Type,
 }
 
 impl AbstractExpression {
@@ -109,7 +109,7 @@ pub struct AbstractNode {
     pub ty: AbstractNodeType,
     // this *might* not be necessary
     // but i'm keeping it incase i want to add a new compiler stage ^^
-    span: Span,
+    pub span: Span,
 }
 
 macro_rules! translate_binop {

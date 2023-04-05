@@ -1,5 +1,5 @@
-fn bool main() {
-    let robert = 3;
-    let a = 4 + robert;
-    return true;
+fn int main() {
+    let bobirty = 3;
+    let a = 4 + bobirty;
+    return a;
 }

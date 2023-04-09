@@ -114,20 +114,21 @@ fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<A
         Expression::BoolLit(bl) => AbstractExpression::new(AbstractExpressionType::BoolLit(bl), span, Type::Bool),
         Expression::IntLit(il) => AbstractExpression::new(AbstractExpressionType::IntLit(il), span, Type::Int),
         Expression::BinOp(o1, bo, o2) => {
-            let o1 = expression(sb, *o1.inner, span)?;
-            let o2 = expression(sb, *o2.inner, span)?;
+            let o1 = expression(sb, *o1.inner, o1.span)?;
+            let o2 = expression(sb, *o2.inner, o2.span)?;
 
+            let span = Span::from_to(o1.span, o2.span);
+            let ty = o1.ty.clone();
             if o1.ty != o2.ty {
                 return Err(ShadowError::from_pos(SemErrors::MismatchedTypes(o1.ty, o2.ty), span));
             }
 
-            let ty = o1.ty.clone();
             AbstractExpression::new(AbstractExpressionType::BinOp(o1, bo, o2), span, ty)
         }
         Expression::Group(gp) => {
-            let expr = expression(sb, *gp.inner, span)?;
+            let expr = expression(sb, *gp.inner, gp.span)?;
             let ty = expr.ty.clone();
-            AbstractExpression::new(AbstractExpressionType::Group(expr), span, ty)
+            AbstractExpression::new(AbstractExpressionType::Group(expr), gp.span, ty)
         }
         Expression::Variable(name) => {
             for scope in &sb.scopes {

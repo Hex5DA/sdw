@@ -1,3 +1,4 @@
 fn int main() {
-    return true;
+    let a = 4 * 5 + (2 - 4 / true);
+    return a;
 }

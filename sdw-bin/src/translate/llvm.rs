@@ -11,26 +11,6 @@ fn type_to_ir(ty: &Type) -> &str {
     }
 }
 
-/// without this `translate_expr` is pretty awful
-/// ignore that disgusting arg list :vomit:
-macro_rules! binop_translate {
-    ( $op:literal, $char:literal, $out:ident, $expr:ident, $o1:ident, $o2:ident ) => {{
-        let temp_tag = mangle_va(format!("_{}t", $char));
-        let o1_tag = translate_expr($out, &$o1.clone())?;
-        let o2_tag = translate_expr($out, &$o2.clone())?;
-        writeln!(
-            $out,
-            "  %{} = {} {} {}, {}",
-            temp_tag,
-            $op,
-            type_to_ir(&($expr).ty),
-            o1_tag,
-            o2_tag,
-        )?;
-        format!("%{}", temp_tag)
-    }};
-}
-
 fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
     Ok(match &*expr.expr {
         ExpressionType::IntLit(il) => il.to_string(),
@@ -47,10 +27,38 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
             )?;
             format!("%{}", tv_name)
         }
-        ExpressionType::Add(o1, o2) => binop_translate!("add", "a", out, expr, o1, o2),
-        ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
-        ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
-        ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
+        ExpressionType::BinOp(o1, bo, o2) => {
+            let temp_tag = mangle_va(format!(
+                "_{}t",
+                match bo {
+                    BinOpTypes::Add => "a",
+                    BinOpTypes::Sub => "s",
+                    BinOpTypes::Div => "d",
+                    BinOpTypes::Mul => "m",
+                }
+            ));
+            let o1_tag = translate_expr(out, &o1.clone())?;
+            let o2_tag = translate_expr(out, &o2.clone())?;
+            writeln!(
+                out,
+                "  %{} = {} {} {}, {}",
+                temp_tag,
+                match bo {
+                    BinOpTypes::Add => "add",
+                    BinOpTypes::Sub => "sub",
+                    BinOpTypes::Mul => "mul",
+                    BinOpTypes::Div => "sdiv",
+                },
+                type_to_ir(&(expr).ty),
+                o1_tag,
+                o2_tag,
+            )?;
+            format!("%{}", temp_tag)
+        }
+        // ExpressionType::Add(o1, o2) => binop_translate!("add", "a", out, expr, o1, o2),
+        // ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
+        // ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
+        // ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
         ExpressionType::Group(gr) => translate_expr(out, gr)?,
     })
 }

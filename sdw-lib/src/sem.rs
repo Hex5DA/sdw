@@ -9,10 +9,7 @@ pub enum AbstractExpressionType {
     IntLit(i64),
     BoolLit(bool),
     Variable(String),
-    Add(AbstractExpression, AbstractExpression),
-    Sub(AbstractExpression, AbstractExpression),
-    Mul(AbstractExpression, AbstractExpression),
-    Div(AbstractExpression, AbstractExpression),
+    BinOp(AbstractExpression, BinOpTypes, AbstractExpression),
     Group(AbstractExpression),
 }
 
@@ -112,30 +109,23 @@ pub struct AbstractNode {
     pub span: Span,
 }
 
-macro_rules! translate_binop {
-    ( $o1:ident, $o2:ident, $sb:ident, $span:ident, $expr:expr) => {{
-        let o1 = expression($sb, *$o1, $span)?;
-        let o2 = expression($sb, *$o2, $span)?;
-
-        if o1.ty != o2.ty {
-            return Err(ShadowError::from_pos(SemErrors::MismatchedTypes(o1.ty, o2.ty), $span));
-        }
-
-        let ty = o1.ty.clone();
-        AbstractExpression::new($expr(o1, o2), $span, ty)
-    }};
-}
-
 fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<AbstractExpression> {
     Ok(match expr {
         Expression::BoolLit(bl) => AbstractExpression::new(AbstractExpressionType::BoolLit(bl), span, Type::Bool),
         Expression::IntLit(il) => AbstractExpression::new(AbstractExpressionType::IntLit(il), span, Type::Int),
-        Expression::Add(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Add),
-        Expression::Sub(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Sub),
-        Expression::Mul(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Mul),
-        Expression::Div(o1, o2) => translate_binop!(o1, o2, sb, span, AbstractExpressionType::Div),
+        Expression::BinOp(o1, bo, o2) => {
+            let o1 = expression(sb, *o1.inner, span)?;
+            let o2 = expression(sb, *o2.inner, span)?;
+
+            if o1.ty != o2.ty {
+                return Err(ShadowError::from_pos(SemErrors::MismatchedTypes(o1.ty, o2.ty), span));
+            }
+
+            let ty = o1.ty.clone();
+            AbstractExpression::new(AbstractExpressionType::BinOp(o1, bo, o2), span, ty)
+        }
         Expression::Group(gp) => {
-            let expr = expression(sb, *gp, span)?;
+            let expr = expression(sb, *gp.inner, span)?;
             let ty = expr.ty.clone();
             AbstractExpression::new(AbstractExpressionType::Group(expr), span, ty)
         }

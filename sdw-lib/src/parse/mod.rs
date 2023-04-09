@@ -5,7 +5,7 @@ pub mod expr;
 use expr::*;
 
 pub mod prelude {
-    pub use super::expr::Expression;
+    pub use super::expr::{BinOpTypes, Expression};
     pub use super::{SyntaxBlock, SyntaxNode, SyntaxNodeType};
     pub use crate::common::Type;
 }
@@ -159,9 +159,12 @@ impl ParseBuffer {
 
         self.consume(LexemeTypes::Semicolon)?;
         Ok(SyntaxNode::new(
-            // TODO: get the expression's span
             SyntaxNodeType::Return {
-                expr: Spanned::new(span, expr),
+                expr: if let Some(expr) = expr {
+                    Spanned::new(expr.span, Some(expr.inner))
+                } else {
+                    Spanned::new(span, None)
+                },
             },
             Span::from_to(span, span),
         ))
@@ -170,14 +173,13 @@ impl ParseBuffer {
     fn parse_vdec(&mut self) -> Result<SyntaxNode> {
         let start = self.consume(LexemeTypes::Keyword(Keywords::Let))?.span;
         let (name, nm_l) = self.eat_idn()?;
-        let todo_temp = self.consume(LexemeTypes::Equals)?.span;
-        // TODO: get expression's span
+        self.consume(LexemeTypes::Equals)?;
         let init = self.parse_expr()?;
         let end = self.consume(LexemeTypes::Semicolon)?.span;
 
         Ok(SyntaxNode::new(
             SyntaxNodeType::VDec {
-                init: Spanned::new(todo_temp, init),
+                init,
                 name: Spanned::new(nm_l.span, name),
             },
             Span::from_to(start, end),

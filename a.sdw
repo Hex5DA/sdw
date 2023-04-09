@@ -1,4 +1,3 @@
-fn bool main() {
-    let a = false;
-    return a;
+fn int main() {
+    return true;
 }

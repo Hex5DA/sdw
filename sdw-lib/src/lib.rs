@@ -18,10 +18,12 @@ mod common {
 
     impl Span {
         pub fn from_to(from: Self, to: Self) -> Self {
+            // assert!(to.column > from.column);
+            // assert!(to.line >= from.line);
             Span {
                 line: from.line,
                 column: from.column,
-                end_col: to.column,
+                end_col: to.end_col,
                 end_line: to.end_line,
             }
         }
@@ -136,8 +138,10 @@ pub mod consumer {
     pub type Expression = AbstractExpression;
     pub type ExpressionType = AbstractExpressionType;
 
+    pub use crate::common::Type;
+    pub use crate::parse::prelude::BinOpTypes;
+
     pub mod prelude {
         pub use super::*;
-        pub use crate::common::Type;
     }
 }

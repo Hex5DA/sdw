@@ -54,7 +54,7 @@ impl ShadowError {
             eprintln!(
                 "{}{} {}",
                 repeat_char(' ', self.span.column as usize),
-                repeat_char('^', (self.span.end_col - self.span.column + 1) as usize).red(),
+                repeat_char('^', (self.span.end_col - self.span.column) as usize).red(),
                 "- error occured here!".red()
             );
         }

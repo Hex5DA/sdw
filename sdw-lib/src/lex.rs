@@ -63,6 +63,21 @@ impl Display for Literals {
         )
     }
 }
+
+impl Literals {
+    fn new(from: &str) -> Option<Self> {
+        Some(if let Ok(num) = from.parse::<i64>() {
+            Self::Integer(num)
+        } else if from == "true" {
+            Self::Boolean(true)
+        } else if from == "false" {
+            Self::Boolean(false)
+        } else {
+            return None;
+        })
+    }
+}
+
 /// the master list of possible lexemes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LexemeTypes {
@@ -94,6 +109,12 @@ pub enum LexemeTypes {
     FSlash,
     /// *
     Asterisk,
+    /// >
+    AngleRight,
+    /// <
+    AngleLeft,
+    /// !
+    Bang,
 }
 
 impl LexemeTypes {
@@ -111,13 +132,16 @@ impl LexemeTypes {
             "-" => Dash,
             "/" => FSlash,
             "*" => Asterisk,
+            "!" => Bang,
+            "<" => AngleLeft,
+            ">" => AngleRight,
             "false" => Literal(Literals::Boolean(false)),
             "true" => Literal(Literals::Boolean(true)),
             other => {
                 if let Some(kw) = Keywords::new(other) {
                     Keyword(kw)
-                } else if let Ok(num) = other.parse::<i64>() {
-                    Literal(self::Literals::Integer(num))
+                } else if let Some(lit) = Literals::new(other) {
+                    Literal(lit)
                 } else if IDN_RE.is_match(other) {
                     Idn(other.to_string())
                 } else {
@@ -155,6 +179,9 @@ impl Display for LexemeTypes {
                 Self::Dash => "-",
                 Self::FSlash => "/",
                 Self::Asterisk => "*",
+                Self::AngleLeft => "<",
+                Self::AngleRight => ">",
+                Self::Bang => "!",
             }
         )
     }

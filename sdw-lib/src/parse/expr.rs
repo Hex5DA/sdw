@@ -15,12 +15,11 @@ impl From<Spanned<Expression>> for ExprWrapper {
 
 #[derive(Debug, Clone)]
 pub enum Expression {
-    // literals
     IntLit(i64),
     BoolLit(bool),
     Variable(String),
     BinOp(ExprWrapper, BinOpTypes, ExprWrapper),
-    // others
+    Comp(ExprWrapper, CompTypes, ExprWrapper),
     Group(ExprWrapper),
 }
 
@@ -32,11 +31,23 @@ pub enum BinOpTypes {
     Mul,
 }
 
+#[derive(Debug, Clone)]
+pub enum CompTypes {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqualTo,
+    GreaterThan,
+    GreaterThanEqualTo,
+}
+
 impl LexemeTypes {
     fn prec(&self) -> u64 {
         match self {
             LexemeTypes::Cross | LexemeTypes::Dash => 10,
             LexemeTypes::Asterisk | LexemeTypes::FSlash => 20,
+            // TODO: is this a good precedence?? idk lol
+            LexemeTypes::AngleLeft | LexemeTypes::AngleRight | LexemeTypes::Bang | LexemeTypes::Equals => 30,
             _ => 0,
         }
     }
@@ -95,12 +106,42 @@ impl ParseBuffer {
         let expr = match next.ty {
             LexemeTypes::Cross | LexemeTypes::Dash | LexemeTypes::FSlash | LexemeTypes::Asterisk => {
                 let right: ExprWrapper = self._parse_expr(next.ty.prec())?.into();
-                println!("right: {:#?}", right);
                 span = Span::from_to(left.span, right.span);
                 Expression::BinOp(left.into(), next.try_into().unwrap(), right)
             }
+            LexemeTypes::Equals | LexemeTypes::Bang | LexemeTypes::AngleLeft | LexemeTypes::AngleRight => {
+                let cmp = self.parse_comp(next.clone())?;
+                let right: ExprWrapper = self._parse_expr(next.ty.prec())?.into();
+                span = Span::from_to(left.span, right.span);
+                Expression::Comp(left.into(), cmp, right)
+            },
             ty => return Err(ShadowError::from_pos(ParseErrors::UnknownOperator(ty), next.span)),
         };
         Ok(Spanned::new(span, expr))
+    }
+
+    /// this is called under the assumption that the next tokens are valid comparisons
+    fn parse_comp(&mut self, next: Lexeme) -> Result<CompTypes> {
+        Ok(match next.ty {
+            LexemeTypes::AngleRight => {
+                if self.peek()?.ty == LexemeTypes::Equals {
+                    self.consume(LexemeTypes::Equals).unwrap();
+                    CompTypes::GreaterThanEqualTo
+                } else {
+                    CompTypes::GreaterThan
+                }
+            }
+            LexemeTypes::AngleLeft => {
+                if self.peek()?.ty == LexemeTypes::Equals {
+                    self.consume(LexemeTypes::Equals).unwrap();
+                    CompTypes::LessThanEqualTo
+                } else {
+                    CompTypes::LessThan
+                }
+            }
+            LexemeTypes::Equals => { self.consume(LexemeTypes::Equals)?; CompTypes::Equal },
+            LexemeTypes::Bang => { self.consume(LexemeTypes::Equals)?; CompTypes::NotEqual },
+            _ => unreachable!(),
+        })
     }
 }

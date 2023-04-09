@@ -55,10 +55,28 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
             )?;
             format!("%{}", temp_tag)
         }
-        // ExpressionType::Add(o1, o2) => binop_translate!("add", "a", out, expr, o1, o2),
-        // ExpressionType::Sub(o1, o2) => binop_translate!("sub", "s", out, expr, o1, o2),
-        // ExpressionType::Mul(o1, o2) => binop_translate!("mul", "m", out, expr, o1, o2),
-        // ExpressionType::Div(o1, o2) => binop_translate!("sdiv", "d", out, expr, o1, o2),
+        ExpressionType::Comp(o1, co, o2) => {
+            let temp_tag = mangle_va("_ct".to_string());
+            let o1_tag = translate_expr(out, &o1.clone())?;
+            let o2_tag = translate_expr(out, &o2.clone())?;
+            writeln!(
+                out,
+                "  %{} = icmp {} {} {}, {}",
+                temp_tag,
+                match co {
+                    CompTypes::Equal => "eq",
+                    CompTypes::NotEqual => "ne",
+                    CompTypes::GreaterThan => "sgt",
+                    CompTypes::GreaterThanEqualTo => "sge",
+                    CompTypes::LessThan => "slt",
+                    CompTypes::LessThanEqualTo => "sle",
+                },
+                type_to_ir(&(expr).ty),
+                o1_tag,
+                o2_tag,
+            )?;
+            format!("%{}", temp_tag)
+        }
         ExpressionType::Group(gr) => translate_expr(out, gr)?,
     })
 }

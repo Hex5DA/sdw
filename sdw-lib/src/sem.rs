@@ -10,6 +10,7 @@ pub enum AbstractExpressionType {
     BoolLit(bool),
     Variable(String),
     BinOp(AbstractExpression, BinOpTypes, AbstractExpression),
+    Comp(AbstractExpression, CompTypes, AbstractExpression),
     Group(AbstractExpression),
 }
 
@@ -124,6 +125,17 @@ fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<A
             }
 
             AbstractExpression::new(AbstractExpressionType::BinOp(o1, bo, o2), span, ty)
+        }
+        Expression::Comp(o1, co, o2) => {
+            let o1 = expression(sb, *o1.inner, o1.span)?;
+            let o2 = expression(sb, *o2.inner, o2.span)?;
+
+            let span = Span::from_to(o1.span, o2.span);
+            if o1.ty != o2.ty {
+                return Err(ShadowError::from_pos(SemErrors::MismatchedTypes(o1.ty, o2.ty), span));
+            }
+
+            AbstractExpression::new(AbstractExpressionType::Comp(o1, co, o2), span, Type::Bool)
         }
         Expression::Group(gp) => {
             let expr = expression(sb, *gp.inner, gp.span)?;

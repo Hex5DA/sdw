@@ -139,7 +139,7 @@ pub mod consumer {
     pub type ExpressionType = AbstractExpressionType;
 
     pub use crate::common::Type;
-    pub use crate::parse::prelude::BinOpTypes;
+    pub use crate::parse::prelude::{BinOpTypes, CompTypes};
 
     pub mod prelude {
         pub use super::*;

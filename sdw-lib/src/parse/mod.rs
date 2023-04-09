@@ -5,7 +5,7 @@ pub mod expr;
 use expr::*;
 
 pub mod prelude {
-    pub use super::expr::{BinOpTypes, Expression};
+    pub use super::expr::{BinOpTypes, CompTypes, Expression};
     pub use super::{SyntaxBlock, SyntaxNode, SyntaxNodeType};
     pub use crate::common::Type;
 }

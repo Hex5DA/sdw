@@ -1,4 +1,6 @@
-#!/bin/zsh
+#!/bin/bash
+# hopefully i will go back to zsh at some point :)
+# #!/bin/zsh
 
 asm() {
     llc $1 -o ./a.s

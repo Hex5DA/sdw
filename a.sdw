@@ -1,4 +1,5 @@
-fn bool main() {
-    let a = 8 > 4;
+fn int main() {
+    let a = 8 + 4; 
     return a;
 }
+

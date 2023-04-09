@@ -72,7 +72,8 @@ pub mod mangle {
 
     lazy_static! {
         static ref FN_MT: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
-        static ref VA_MT: Mutex<HashMap<String, AtomicUsize>> = Mutex::new(HashMap::new());
+        static ref VA_CNT: AtomicUsize = AtomicUsize::new(0);
+        static ref VA_MT: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
     }
 
     pub fn mangle_fn(name: String) -> String {
@@ -102,23 +103,26 @@ pub mod mangle {
         we don't need to create a link for this, because "v1" will only be used
         in the context in which it is declared, so can be returned by the generative function
         - in ret, the generative function, as mentioned prior, returns the tag "v1" (which is then used in translation)
+        - all entries are sequential integers
     */
 
-    pub fn mangle_va(name: String) -> String {
-        let mut lock = VA_MT.lock().unwrap();
-        let mangle_count = if let Some(at) = lock.get(&name) {
-            at.fetch_add(1, /* idk what this arg does lol */ Ordering::SeqCst) + 1
-        } else {
-            lock.insert(name.clone(), AtomicUsize::new(0));
-            0
-        };
-        format!("{}.{}", name, mangle_count)
+    pub fn ins_va(name: String) -> String {
+        let tag = (VA_CNT.fetch_add(1, Ordering::SeqCst) + 1).to_string();
+        VA_MT.lock().unwrap().insert(name, tag.clone());
+        tag
     }
 
-    // not sure if this is dodging around the problem or
-    // a good solution - so treat this as temporary
-    pub fn mangle_va_base(name: String) -> String {
-        format!("{}.0", name)
+    pub fn get_va(name: String) -> String {
+        VA_MT
+            .lock()
+            .unwrap()
+            .get(&name)
+            .expect("attempted to access undeclared variable; this should be caught in semantic analysis")
+            .to_string()
+    }
+
+    pub fn seq_mangle() -> String {
+        format!("{}", VA_CNT.fetch_add(1, Ordering::SeqCst) + 1)
     }
 }
 

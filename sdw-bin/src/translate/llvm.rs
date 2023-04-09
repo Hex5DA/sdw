@@ -17,28 +17,32 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
         ExpressionType::BoolLit(bl) => (*bl as u8).to_string(),
         ExpressionType::Variable(nm) => {
             writeln!(out, "  ; dereferencing '{}'", nm)?;
-            let tv_name = mangle_va(nm.to_string());
+            let tv_name = seq_mangle();
             writeln!(
                 out,
                 "  %{} = load {}, ptr %{}",
                 tv_name,
                 type_to_ir(&expr.ty),
-                mangle_va_base(nm.to_string())
+                get_va(nm.to_string())
             )?;
             format!("%{}", tv_name)
         }
         ExpressionType::BinOp(o1, bo, o2) => {
-            let temp_tag = mangle_va(format!(
-                "_{}t",
+            debug_assert_eq!(o1.ty, o2.ty);
+            writeln!(
+                out,
+                "  ; '{}' binop",
                 match bo {
-                    BinOpTypes::Add => "a",
-                    BinOpTypes::Sub => "s",
-                    BinOpTypes::Div => "d",
-                    BinOpTypes::Mul => "m",
+                    BinOpTypes::Add => "addition",
+                    BinOpTypes::Sub => "subtraction",
+                    BinOpTypes::Div => "division",
+                    BinOpTypes::Mul => "multiplication",
                 }
-            ));
+            )?;
+
             let o1_tag = translate_expr(out, &o1.clone())?;
             let o2_tag = translate_expr(out, &o2.clone())?;
+            let temp_tag = seq_mangle();
             writeln!(
                 out,
                 "  %{} = {} {} {}, {}",
@@ -56,9 +60,10 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
             format!("%{}", temp_tag)
         }
         ExpressionType::Comp(o1, co, o2) => {
-            let temp_tag = mangle_va("_ct".to_string());
+            debug_assert_eq!(o1.ty, o2.ty);
             let o1_tag = translate_expr(out, &o1.clone())?;
             let o2_tag = translate_expr(out, &o2.clone())?;
+            let temp_tag = seq_mangle();
             writeln!(
                 out,
                 "  %{} = icmp {} {} {}, {}",
@@ -71,7 +76,7 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
                     CompTypes::LessThan => "slt",
                     CompTypes::LessThanEqualTo => "sle",
                 },
-                type_to_ir(&(expr).ty),
+                type_to_ir(&o1.ty),
                 o1_tag,
                 o2_tag,
             )?;
@@ -114,7 +119,7 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
             }
             NodeType::VDec { name, init } => {
                 writeln!(out, "  ; allocating '{}'", name.inner)?;
-                let tag = mangle_va(name.inner.clone());
+                let tag = ins_va(name.inner.clone());
                 writeln!(out, "  %{} = alloca {}", tag, type_to_ir(&init.ty),)?;
                 let val_tag = translate_expr(out, init)?;
                 writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&init.ty), val_tag, tag,)?;

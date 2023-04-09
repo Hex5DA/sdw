@@ -1,10 +1,11 @@
-define i1 @main() {
+define i64 @main() {
   ; allocating 'a'
-  %a.0 = alloca i1
-  %_ct.0 = icmp sgt i1 8, 4
-  store i1 %_ct.0, ptr %a.0
+  %1 = alloca i64
+  ; 'addition' binop
+  %2 = add i64 8, 4
+  store i64 %2, ptr %1
   ; dereferencing 'a'
-  %a.1 = load i1, ptr %a.0
-  ret i1 %a.1
+  %3 = load i64, ptr %1
+  ret i64 %3
 }
 

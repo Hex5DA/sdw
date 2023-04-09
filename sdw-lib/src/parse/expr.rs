@@ -114,7 +114,7 @@ impl ParseBuffer {
                 let right: ExprWrapper = self._parse_expr(next.ty.prec())?.into();
                 span = Span::from_to(left.span, right.span);
                 Expression::Comp(left.into(), cmp, right)
-            },
+            }
             ty => return Err(ShadowError::from_pos(ParseErrors::UnknownOperator(ty), next.span)),
         };
         Ok(Spanned::new(span, expr))
@@ -139,8 +139,14 @@ impl ParseBuffer {
                     CompTypes::LessThan
                 }
             }
-            LexemeTypes::Equals => { self.consume(LexemeTypes::Equals)?; CompTypes::Equal },
-            LexemeTypes::Bang => { self.consume(LexemeTypes::Equals)?; CompTypes::NotEqual },
+            LexemeTypes::Equals => {
+                self.consume(LexemeTypes::Equals)?;
+                CompTypes::Equal
+            }
+            LexemeTypes::Bang => {
+                self.consume(LexemeTypes::Equals)?;
+                CompTypes::NotEqual
+            }
             _ => unreachable!(),
         })
     }

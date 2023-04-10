@@ -1,8 +1,10 @@
 fn int main() {
-    if true {
+    let a = 10;
+    if a < 5 {
         return 0;
-    } else {
-        return 2;
+    } else if a < 10 {
+        return 6;
     }
-    return 4;
+
+    return 8;
 }

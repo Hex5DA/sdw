@@ -134,23 +134,33 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 else_block,
                 else_ifs,
             } => {
+                writeln!(out, "  ; conditional (if) statement begin")?;
+                // this is poor, because we the tag for exit will increase
+                // compared to the other tags. i don't think this is a avoidable without some
+                // form of lazy-loading , since we need it immediately :/
                 let exit = seq_mangle();
                 let cond = translate_expr(out, &cond.inner)?;
 
+                // true tag
                 let tt = seq_mangle();
+                // false tag
                 let mut ft = seq_mangle();
                 writeln!(out, "  br i1 {}, label %{}, label %{}", cond, tt, ft)?;
 
+                writeln!(out, "; true case")?;
                 writeln!(out, "{}:", tt)?;
                 translate(out, body)?;
                 writeln!(out, "  br label %{}", exit)?;
                 
                 for elif in else_ifs {
-                    let cond = translate_expr(out, &elif.0.inner)?;
-
-                    let tt = seq_mangle();
+                    writeln!(out, "; false case")?;
+                    // we use the previous false tag, giving a chaining effect
                     writeln!(out, "{}:", ft)?;
+                    
+                    let cond = translate_expr(out, &elif.0.inner)?;
+                    // we update it here for the next iteration (next `else if`) if there is one
                     ft = seq_mangle();
+                    let tt = seq_mangle();
                     writeln!(out, "  br i1 {}, label %{}, label %{}", cond, tt, ft)?;
 
                     writeln!(out, "{}:", tt)?;
@@ -158,12 +168,23 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                     writeln!(out, "  br label %{}", exit)?;
                 }
 
+                // write the final tag. if there is no `else`, this tag is wasted, but it removes
+                // some nasty code in the above loop so i'm okay with it.
+                // this code would need to check if it was the last iteration of the loop, and if
+                // it was use exit as the false-case. as it is, there's always a dangling tag, so 
+                // this cleans it up.
+                writeln!(out, "; false case")?;
                 writeln!(out, "{}: ", ft)?;
                 if let Some(eb) = else_block {
+                    // if there is an else block, the above oversight actually becomes useful, as
+                    // the final elif will attempt to branch to a dangling tag. we can just write
+                    // the else block beneath it, to get the expected behaviour.
                     translate(out, eb)?;
                 }
 
+                // in both cases, we can use a final branch to get to the end of the conditional.
                 writeln!(out, "  br label %{}", exit)?;
+                writeln!(out, "; conditional exit label")?;
                 writeln!(out, "{}:", exit)?;
             }
         }

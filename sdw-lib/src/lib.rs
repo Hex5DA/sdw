@@ -106,23 +106,30 @@ pub mod mangle {
         - all entries are sequential integers
     */
 
-    pub fn ins_va(name: String) -> String {
-        let tag = (VA_CNT.fetch_add(1, Ordering::SeqCst) + 1).to_string();
-        VA_MT.lock().unwrap().insert(name, tag.clone());
-        tag
-    }
-
-    pub fn get_va(name: String) -> String {
+    pub fn ins_va(name: String) {
         VA_MT
             .lock()
             .unwrap()
-            .get(&name)
-            .expect("attempted to access undeclared variable; this should be caught in semantic analysis")
-            .to_string()
+            .insert(name, (VA_CNT.fetch_add(1, Ordering::SeqCst) + 1).to_string());
+    }
+
+    pub fn get_va(name: String) -> String {
+        mangle(
+            VA_MT
+                .lock()
+                .unwrap()
+                .get(&name)
+                .expect("attempted to access undeclared variable; this should be caught in semantic analysis")
+                .to_string(),
+        )
     }
 
     pub fn seq_mangle() -> String {
-        format!("{}", VA_CNT.fetch_add(1, Ordering::SeqCst) + 1)
+        mangle((VA_CNT.fetch_add(1, Ordering::SeqCst) + 1).to_string())
+    }
+
+    fn mangle(tag: String) -> String {
+        format!(".{}", tag)
     }
 }
 

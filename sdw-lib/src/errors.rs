@@ -143,6 +143,8 @@ pub enum ParseErrors {
     InvalidExpressionLHS(LexemeTypes),
     #[error("and unknown postfix operator was used - {0}")]
     UnknownOperator(LexemeTypes),
+    #[error("an else or else-if block is present outside an if block")]
+    ElseOutsideIf,
 }
 
 impl From<ParseErrors> for ErrType {

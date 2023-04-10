@@ -1,8 +1,10 @@
 fn int main() {
-    let a = 4 + 8;
-    if a > 15 {
-        return 1;
+    let a = 4 * 12 * 12;
+    if a < 2 {
+        return 4;
+    } else {
+        return 3;
     }
-    return 0;
+    return 3;
 }
 

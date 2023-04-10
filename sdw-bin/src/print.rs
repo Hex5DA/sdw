@@ -54,7 +54,7 @@ pub fn print(block: &Block, idn: u64) {
                 print(body, idn + 2);
                 print_idn("false case:".to_string(), idn + 1);
                 print(body, idn + 2);
-            },
+            }
         }
     }
 }

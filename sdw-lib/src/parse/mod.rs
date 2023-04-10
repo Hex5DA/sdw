@@ -31,6 +31,7 @@ pub enum SyntaxNodeType {
     If {
         cond: Spanned<Expression>,
         body: SyntaxBlock,
+        else_block: Option<SyntaxBlock>,
     },
 }
 
@@ -189,14 +190,34 @@ impl ParseBuffer {
             Span::from_to(start, end),
         ))
     }
-    
+
     fn parse_if(&mut self) -> Result<SyntaxNode> {
         let start = self.consume(LexemeTypes::Keyword(Keywords::If))?.span;
         let expr = self.parse_expr()?;
         self.consume(LexemeTypes::OpenBrace)?;
         let body = _parse(self)?;
-        let end = self.consume(LexemeTypes::CloseBrace)?.span;
-        Ok(SyntaxNode::new(SyntaxNodeType::If { cond: expr, body }, Span::from_to(start, end)))
+        let mut end = self.consume(LexemeTypes::CloseBrace)?.span;
+
+        let mut else_block = None;
+        if let Lexeme {
+            ty: LexemeTypes::Keyword(Keywords::Else),
+            ..
+        } = self.peek()?
+        {
+            self.pop().unwrap();
+            self.consume(LexemeTypes::OpenBrace)?;
+            else_block = Some(_parse(self)?);
+            end = self.consume(LexemeTypes::CloseBrace)?.span;
+        }
+
+        Ok(SyntaxNode::new(
+            SyntaxNodeType::If {
+                cond: expr,
+                body,
+                else_block,
+            },
+            Span::from_to(start, end),
+        ))
     }
 }
 
@@ -208,12 +229,14 @@ fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
             break;
         }
 
-        let node = match pb.peek()?.ty {
+        let next = pb.peek()?;
+        let node = match next.ty {
             LexemeTypes::Keyword(kw) => match kw {
                 Keywords::Fn => pb.parse_fndef()?,
                 Keywords::Return => pb.parse_return()?,
                 Keywords::Let => pb.parse_vdec()?,
                 Keywords::If => pb.parse_if()?,
+                Keywords::Else => return Err(ShadowError::from_pos(ParseErrors::ElseOutsideIf, next.span)),
             },
             LexemeTypes::CloseBrace => unreachable!(),
             _ => panic!("could not parse a statement, for some reason."),

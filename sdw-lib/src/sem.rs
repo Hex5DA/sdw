@@ -57,7 +57,10 @@ impl Scope {
     }
 
     fn new() -> Self {
-        Self { functions: HashMap::new(), variables: HashMap::new() }
+        Self {
+            functions: HashMap::new(),
+            variables: HashMap::new(),
+        }
     }
 }
 
@@ -100,8 +103,9 @@ pub enum AbstractNodeType {
     },
     If {
         cond: Spanned<AbstractExpression>,
-        body: AbstractBlock
-    }
+        body: AbstractBlock,
+        else_block: Option<AbstractBlock>,
+    },
 }
 
 impl AbstractNode {
@@ -247,7 +251,7 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     node.span,
                 )
             }
-            SyntaxNodeType::If { cond, body } => {
+            SyntaxNodeType::If { cond, body, else_block } => {
                 let cond = Spanned::new(cond.span, expression(sb, cond.inner, cond.span)?);
                 if cond.inner.ty != Type::Bool {
                     return Err(ShadowError::from_pos(SemErrors::CondNotBool(cond.inner.ty), cond.span));
@@ -257,7 +261,16 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                 let body = _semantic(sb, body)?;
                 sb.scopes.pop_front();
 
-                AbstractNode::new(AbstractNodeType::If { cond, body }, node.span)
+                let else_block = if let Some(else_block) = else_block {
+                    sb.scopes.push_front(Scope::new());
+                    let binding = _semantic(sb, else_block)?;
+                    sb.scopes.pop_front();
+                    Some(binding)
+                } else {
+                    None
+                };
+
+                AbstractNode::new(AbstractNodeType::If { cond, body, else_block }, node.span)
             }
         });
     }

@@ -48,12 +48,25 @@ pub fn print(block: &Block, idn: u64) {
                 print_idn(format!("variable '{}' declared", name.inner), idn);
                 print_idn("given an intialiser".to_string(), idn + 1);
             }
-            NodeType::If { body, .. } => {
+            NodeType::If {
+                body,
+                else_block,
+                else_ifs,
+                ..
+            } => {
                 print_idn("if statement".to_string(), idn);
                 print_idn("true case:".to_string(), idn + 1);
                 print(body, idn + 2);
-                print_idn("false case:".to_string(), idn + 1);
-                print(body, idn + 2);
+
+                for elif in else_ifs {
+                    print_idn("else if case:".to_string(), idn + 1);
+                    print(&elif.1, idn + 2)
+                }
+
+                if let Some(else_block) = else_block {
+                    print_idn("else case:".to_string(), idn + 1);
+                    print(else_block, idn + 2);
+                }
             }
         }
     }

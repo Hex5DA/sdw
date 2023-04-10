@@ -128,30 +128,42 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 let val_tag = translate_expr(out, init)?;
                 writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&init.ty), val_tag, tag,)?;
             }
-            NodeType::If { cond, body, else_block } => {
-                writeln!(out, "  ; if")?;
-                let tag = translate_expr(out, &cond.inner)?;
-
-                let tl = seq_mangle();
-                let fl = else_block.clone().map(|_| seq_mangle());
+            NodeType::If {
+                cond,
+                body,
+                else_block,
+                else_ifs,
+            } => {
                 let exit = seq_mangle();
-                writeln!(
-                    out,
-                    "  br i1 {}, label %{}, label %{}",
-                    tag,
-                    tl,
-                    fl.clone().unwrap_or(exit.clone())
-                )?;
+                let cond = translate_expr(out, &cond.inner)?;
 
-                writeln!(out, "{}:", tl)?;
-                translate::<W>(out, body)?;
+                let tt = seq_mangle();
+                let mut ft = seq_mangle();
+                writeln!(out, "  br i1 {}, label %{}, label %{}", cond, tt, ft)?;
+
+                writeln!(out, "{}:", tt)?;
+                translate(out, body)?;
                 writeln!(out, "  br label %{}", exit)?;
+                
+                for elif in else_ifs {
+                    let cond = translate_expr(out, &elif.0.inner)?;
 
-                if let Some(else_block) = else_block {
-                    writeln!(out, "{}:", fl.unwrap())?;
-                    translate::<W>(out, else_block)?;
+                    let tt = seq_mangle();
+                    writeln!(out, "{}:", ft)?;
+                    ft = seq_mangle();
+                    writeln!(out, "  br i1 {}, label %{}, label %{}", cond, tt, ft)?;
+
+                    writeln!(out, "{}:", tt)?;
+                    translate(out, &elif.1)?;
                     writeln!(out, "  br label %{}", exit)?;
                 }
+
+                writeln!(out, "{}: ", ft)?;
+                if let Some(eb) = else_block {
+                    translate(out, eb)?;
+                }
+
+                writeln!(out, "  br label %{}", exit)?;
                 writeln!(out, "{}:", exit)?;
             }
         }

@@ -31,6 +31,7 @@ impl AbstractExpression {
     }
 }
 
+#[allow(dead_code)] // TODO: remove
 struct Scope {
     functions: HashMap<String, SyntaxNode>,
     variables: HashMap<String, Type>,
@@ -105,6 +106,7 @@ pub enum AbstractNodeType {
         cond: Spanned<AbstractExpression>,
         body: AbstractBlock,
         else_block: Option<AbstractBlock>,
+        else_ifs: Vec<(Spanned<AbstractExpression>, AbstractBlock)>,
     },
 }
 
@@ -251,7 +253,12 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     node.span,
                 )
             }
-            SyntaxNodeType::If { cond, body, else_block } => {
+            SyntaxNodeType::If {
+                cond,
+                body,
+                else_block,
+                else_ifs,
+            } => {
                 let cond = Spanned::new(cond.span, expression(sb, cond.inner, cond.span)?);
                 if cond.inner.ty != Type::Bool {
                     return Err(ShadowError::from_pos(SemErrors::CondNotBool(cond.inner.ty), cond.span));
@@ -270,7 +277,23 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     None
                 };
 
-                AbstractNode::new(AbstractNodeType::If { cond, body, else_block }, node.span)
+                let mut nelse_ifs = Vec::new();
+                for elif in else_ifs {
+                    nelse_ifs.push((
+                        Spanned::new(elif.0.span, expression(sb, elif.0.inner, elif.0.span)?),
+                        _semantic(sb, elif.1)?,
+                    ))
+                }
+
+                AbstractNode::new(
+                    AbstractNodeType::If {
+                        cond,
+                        body,
+                        else_block,
+                        else_ifs: nelse_ifs,
+                    },
+                    node.span,
+                )
             }
         });
     }

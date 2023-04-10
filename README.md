@@ -20,10 +20,8 @@ let <name> = <expr>;
 
 ## TODO
 
-- Fix if block shorthand (broken)
-- Conditional refactor
-- Inequalities ect
-- Expand type system
+- else-if
+- diverging paths in S.A.
 
 ## Roadmap
 

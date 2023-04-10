@@ -32,6 +32,7 @@ pub enum SyntaxNodeType {
         cond: Spanned<Expression>,
         body: SyntaxBlock,
         else_block: Option<SyntaxBlock>,
+        else_ifs: Vec<(Spanned<Expression>, SyntaxBlock)>,
     },
 }
 
@@ -199,12 +200,28 @@ impl ParseBuffer {
         let mut end = self.consume(LexemeTypes::CloseBrace)?.span;
 
         let mut else_block = None;
-        if let Lexeme {
+        let mut else_ifs = Vec::new();
+        while let Lexeme {
             ty: LexemeTypes::Keyword(Keywords::Else),
             ..
         } = self.peek()?
         {
             self.pop().unwrap();
+
+            if let Lexeme {
+                ty: LexemeTypes::Keyword(Keywords::If),
+                ..
+            } = self.peek()?
+            {
+                self.pop().unwrap();
+                let expr = self.parse_expr()?;
+                self.consume(LexemeTypes::OpenBrace)?;
+                let block = _parse(self)?;
+                end = self.consume(LexemeTypes::CloseBrace)?.span;
+                else_ifs.push((expr, block));
+                continue;
+            }
+
             self.consume(LexemeTypes::OpenBrace)?;
             else_block = Some(_parse(self)?);
             end = self.consume(LexemeTypes::CloseBrace)?.span;
@@ -215,6 +232,7 @@ impl ParseBuffer {
                 cond: expr,
                 body,
                 else_block,
+                else_ifs,
             },
             Span::from_to(start, end),
         ))

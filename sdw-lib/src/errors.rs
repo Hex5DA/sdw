@@ -164,6 +164,8 @@ pub enum SemErrors {
     CompilerNotInAScope,
     #[error("the variabled named '{0}' was not defined inside the current scope")]
     VariableNotFound(String),
+    #[error("an if/else if's condition was not a boolean, but of type '{0:?}'")]
+    CondNotBool(Type),
 }
 
 impl From<SemErrors> for ErrType {

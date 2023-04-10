@@ -28,6 +28,10 @@ pub enum SyntaxNodeType {
         init: Spanned<Expression>,
         name: Spanned<String>,
     },
+    If {
+        cond: Spanned<Expression>,
+        body: SyntaxBlock,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -185,6 +189,15 @@ impl ParseBuffer {
             Span::from_to(start, end),
         ))
     }
+    
+    fn parse_if(&mut self) -> Result<SyntaxNode> {
+        let start = self.consume(LexemeTypes::Keyword(Keywords::If))?.span;
+        let expr = self.parse_expr()?;
+        self.consume(LexemeTypes::OpenBrace)?;
+        let body = _parse(self)?;
+        let end = self.consume(LexemeTypes::CloseBrace)?.span;
+        Ok(SyntaxNode::new(SyntaxNodeType::If { cond: expr, body }, Span::from_to(start, end)))
+    }
 }
 
 fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
@@ -195,12 +208,12 @@ fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
             break;
         }
 
-        let next = pb.peek()?;
-        let node = match next.ty {
+        let node = match pb.peek()?.ty {
             LexemeTypes::Keyword(kw) => match kw {
                 Keywords::Fn => pb.parse_fndef()?,
                 Keywords::Return => pb.parse_return()?,
                 Keywords::Let => pb.parse_vdec()?,
+                Keywords::If => pb.parse_if()?,
             },
             LexemeTypes::CloseBrace => unreachable!(),
             _ => panic!("could not parse a statement, for some reason."),

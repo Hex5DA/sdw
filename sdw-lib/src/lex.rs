@@ -16,6 +16,7 @@ pub enum Keywords {
     Fn,
     Return,
     Let,
+    If
 }
 
 impl Keywords {
@@ -24,6 +25,7 @@ impl Keywords {
             "fn" => Keywords::Fn,
             "return" => Keywords::Return,
             "let" => Keywords::Let,
+            "if" => Keywords::If,
             _ => return None,
         })
     }
@@ -38,6 +40,7 @@ impl Display for Keywords {
                 Self::Fn => "fn",
                 Self::Return => "return",
                 Self::Let => "let",
+                Self::If => "if",
             }
         )
     }

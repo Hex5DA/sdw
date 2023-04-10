@@ -1,5 +1,8 @@
 fn int main() {
-    let a = 8 + 4; 
-    return a;
+    let a = 4 + 8;
+    if a > 15 {
+        return 1;
+    }
+    return 0;
 }
 

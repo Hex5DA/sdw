@@ -55,6 +55,10 @@ impl Scope {
             unreachable!()
         }
     }
+
+    fn new() -> Self {
+        Self { functions: HashMap::new(), variables: HashMap::new() }
+    }
 }
 
 struct SemanticBuffer {
@@ -94,6 +98,10 @@ pub enum AbstractNodeType {
         name: Spanned<String>,
         init: AbstractExpression,
     },
+    If {
+        cond: Spanned<AbstractExpression>,
+        body: AbstractBlock
+    }
 }
 
 impl AbstractNode {
@@ -238,6 +246,18 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     },
                     node.span,
                 )
+            }
+            SyntaxNodeType::If { cond, body } => {
+                let cond = Spanned::new(cond.span, expression(sb, cond.inner, cond.span)?);
+                if cond.inner.ty != Type::Bool {
+                    return Err(ShadowError::from_pos(SemErrors::CondNotBool(cond.inner.ty), cond.span));
+                }
+
+                sb.scopes.push_front(Scope::new());
+                let body = _semantic(sb, body)?;
+                sb.scopes.pop_front();
+
+                AbstractNode::new(AbstractNodeType::If { cond, body }, node.span)
             }
         });
     }

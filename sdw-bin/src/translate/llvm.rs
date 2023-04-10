@@ -124,6 +124,16 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 let val_tag = translate_expr(out, init)?;
                 writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&init.ty), val_tag, tag,)?;
             }
+            NodeType::If { cond, body } => {
+                writeln!(out, "  ; if")?;
+                let cond_tag = translate_expr(out, &cond.inner)?;
+                let tl = seq_mangle();
+                let fl = seq_mangle();
+                writeln!(out, "  br i1 {}, label %{}, label %{}", cond_tag, tl, fl)?;
+                writeln!(out, "{}:", tl)?;
+                translate::<W>(out, body)?;
+                writeln!(out, "{}:", fl)?;
+            }
         }
     }
 

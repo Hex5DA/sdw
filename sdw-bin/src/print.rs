@@ -48,6 +48,13 @@ pub fn print(block: &Block, idn: u64) {
                 print_idn(format!("variable '{}' declared", name.inner), idn);
                 print_idn("given an intialiser".to_string(), idn + 1);
             }
+            NodeType::If { body, .. } => {
+                print_idn("if statement".to_string(), idn);
+                print_idn("true case:".to_string(), idn + 1);
+                print(body, idn + 2);
+                print_idn("false case:".to_string(), idn + 1);
+                print(body, idn + 2);
+            },
         }
     }
 }

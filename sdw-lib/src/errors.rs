@@ -172,6 +172,8 @@ pub enum SemErrors {
     ArgTyMismatch(Type, Type),
     #[error("the function named '{0}' was not found")]
     FunctionNotFound(String),
+    #[error("expected '{0}' arguments, but found '{1}'")]
+    MismatchedNumArgs(usize, usize),
 }
 
 impl From<SemErrors> for ErrType {

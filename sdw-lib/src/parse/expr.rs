@@ -94,9 +94,15 @@ impl ParseBuffer {
                     LexemeTypes::OpenParen => {
                         self.pop().unwrap();
                         let mut args = Vec::new();
-                        while self.peek()?.ty != LexemeTypes::CloseParen {
-                            args.push(self.parse_expr()?.into());
-                            self.consume(LexemeTypes::Comma)?;
+                        if self.peek()?.ty != LexemeTypes::CloseParen {
+                            loop {
+                                args.push(self.parse_expr()?.into());
+                                if self.peek()?.ty == LexemeTypes::Comma {
+                                    self.consume(LexemeTypes::Comma)?;
+                                } else {
+                                    break;
+                                }
+                            }
                         }
                         self.consume(LexemeTypes::CloseParen)?;
                         Expression::FnCall(name, args)

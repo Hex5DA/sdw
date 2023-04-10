@@ -106,6 +106,10 @@ pub mod mangle {
         - all entries are sequential integers
     */
 
+    pub fn ins_va_raw(name: String, tag: String) {
+        VA_MT.lock().unwrap().insert(name, tag);
+    }
+
     pub fn ins_va(name: String) {
         VA_MT
             .lock()

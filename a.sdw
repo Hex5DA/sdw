@@ -1,8 +1,8 @@
-fn int second(int a, int b) {
+fn int add(int a, int b) {
     return a + b;
 }
 
 fn int main() {
-    let a = second();
+    let a = add(8, 4);
     return a;
 }

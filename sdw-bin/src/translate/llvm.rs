@@ -32,16 +32,23 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
             for (idx, arg) in args.iter().enumerate() {
                 let tag = translate_expr(out, arg)?;
                 args_string.push_str(format!("{} {}", type_to_ir(&arg.ty), tag).as_str());
-                
-                if idx <= args.len() {
-                    args_string.push(',');
+
+                if idx < args.len() - 1 {
+                    args_string.push_str(", ");
                 }
             }
 
             let rvt = seq_mangle();
-            writeln!(out, "  %{} = call {} @{}({})", rvt, type_to_ir(&expr.ty), nm, args_string)?;
+            writeln!(
+                out,
+                "  %{} = call {} @{}({})",
+                rvt,
+                type_to_ir(&expr.ty),
+                nm,
+                args_string
+            )?;
             format!("%{}", rvt)
-        },
+        }
         ExpressionType::BinOp(o1, bo, o2) => {
             debug_assert_eq!(o1.ty, o2.ty);
             writeln!(
@@ -121,6 +128,18 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 }
                 write!(out, ") ")?;
                 writeln!(out, "{{")?;
+                for param in params {
+                    ins_va(param.1.inner.clone());
+                    let tag = get_va(param.1.inner.clone());
+                    writeln!(out, "  %{} = alloca {}", tag, type_to_ir(&param.0.inner))?;
+                    writeln!(
+                        out,
+                        "  store {} %{}, ptr %{}",
+                        type_to_ir(&param.0.inner),
+                        param.1.inner,
+                        tag
+                    )?;
+                }
                 translate::<W>(out, body)?;
                 // there should always be some terminating instruction,
                 // so the end of the function should always be `unreachable`

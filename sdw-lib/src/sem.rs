@@ -167,22 +167,59 @@ fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<A
                     ));
                 }
             }
+            if let Some(SyntaxNode {
+                ty: SyntaxNodeType::Function { params, .. },
+                ..
+            }) = sb.functions.get(0)
+            {
+                for param in params {
+                    if name == param.1.inner {
+                        return Ok(AbstractExpression::new(
+                            AbstractExpressionType::Variable(name),
+                            span,
+                            Type::from_string(param.0.inner.clone(), param.0.span)?,
+                        ));
+                    }
+                }
+            }
+
             return Err(ShadowError::from_pos(SemErrors::VariableNotFound(name), span));
         }
         Expression::FnCall(name, args) => {
+            let fname = name.clone(); // prevent shadowing
             let mut nargs = Vec::new();
             for a in &args {
                 nargs.push(expression(sb, *a.inner.clone(), a.span)?);
             }
             for fndef in &sb.functions {
-                if let SyntaxNode { ty: SyntaxNodeType::Function { params, rty, .. }, .. } = fndef {
-                    for (arg, param) in nargs.iter().zip(params) {
-                        let pty = Type::from_string(param.1.inner.clone(), param.1.span)?;
-                        if arg.ty != pty {
-                            return Err(ShadowError::from_pos(SemErrors::ArgTyMismatch(pty, arg.ty.clone()), arg.span));
+                if let SyntaxNode {
+                    ty: SyntaxNodeType::Function { params, rty, name, .. },
+                    ..
+                } = fndef
+                {
+                    if name.inner == fname {
+                        if nargs.len() != params.len() {
+                            return Err(ShadowError::from_pos(
+                                SemErrors::MismatchedNumArgs(params.len(), args.len()),
+                                span,
+                            ));
                         }
+
+                        for (arg, param) in nargs.iter().zip(params) {
+                            let pty = Type::from_string(param.0.inner.clone(), param.0.span)?;
+                            if arg.ty != pty {
+                                return Err(ShadowError::from_pos(
+                                    SemErrors::ArgTyMismatch(pty, arg.ty.clone()),
+                                    arg.span,
+                                ));
+                            }
+                        }
+                        return Ok(AbstractExpression::new(
+                            AbstractExpressionType::FnCall(fname, nargs),
+                            span,
+                            Type::from_string(rty.inner.clone(), rty.span)?,
+                        ));
                     }
-                    return Ok(AbstractExpression::new(AbstractExpressionType::FnCall(name, nargs), span, Type::from_string(rty.inner.clone(), rty.span)?));
                 } else {
                     unreachable!()
                 }

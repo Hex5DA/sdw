@@ -9,6 +9,7 @@ pub enum AbstractExpressionType {
     IntLit(i64),
     BoolLit(bool),
     Variable(String),
+    FnCall(String, Vec<AbstractExpression>),
     BinOp(AbstractExpression, BinOpTypes, AbstractExpression),
     Comp(AbstractExpression, CompTypes, AbstractExpression),
     Group(AbstractExpression),
@@ -168,6 +169,26 @@ fn expression(sb: &mut SemanticBuffer, expr: Expression, span: Span) -> Result<A
             }
             return Err(ShadowError::from_pos(SemErrors::VariableNotFound(name), span));
         }
+        Expression::FnCall(name, args) => {
+            let mut nargs = Vec::new();
+            for a in &args {
+                nargs.push(expression(sb, *a.inner.clone(), a.span)?);
+            }
+            for fndef in &sb.functions {
+                if let SyntaxNode { ty: SyntaxNodeType::Function { params, rty, .. }, .. } = fndef {
+                    for (arg, param) in nargs.iter().zip(params) {
+                        let pty = Type::from_string(param.1.inner.clone(), param.1.span)?;
+                        if arg.ty != pty {
+                            return Err(ShadowError::from_pos(SemErrors::ArgTyMismatch(pty, arg.ty.clone()), arg.span));
+                        }
+                    }
+                    return Ok(AbstractExpression::new(AbstractExpressionType::FnCall(name, nargs), span, Type::from_string(rty.inner.clone(), rty.span)?));
+                } else {
+                    unreachable!()
+                }
+            }
+            return Err(ShadowError::from_pos(SemErrors::FunctionNotFound(name), span));
+        }
     })
 }
 
@@ -181,8 +202,8 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                 ref params,
                 ref name,
             } => {
-                sb.functions.push_front(node.clone());
                 sb.scopes.push_front(Scope::from_fn(node.clone()));
+                sb.functions.push_front(node.clone());
 
                 let body = _semantic(sb, body.to_vec())?;
                 let rty = Spanned::new(rty.span, Type::from_string(rty.inner.clone(), rty.span)?);
@@ -194,9 +215,7 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     ));
                 }
 
-                sb.functions.pop_front();
                 sb.scopes.pop_front();
-
                 AbstractNode::new(
                     AbstractNodeType::Function {
                         body,

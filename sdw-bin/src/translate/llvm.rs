@@ -27,6 +27,21 @@ fn translate_expr<W: Write>(out: &mut W, expr: &Expression) -> Result<String> {
             )?;
             format!("%{}", tv_name)
         }
+        ExpressionType::FnCall(nm, args) => {
+            let mut args_string = String::new();
+            for (idx, arg) in args.iter().enumerate() {
+                let tag = translate_expr(out, arg)?;
+                args_string.push_str(format!("{} {}", type_to_ir(&arg.ty), tag).as_str());
+                
+                if idx <= args.len() {
+                    args_string.push(',');
+                }
+            }
+
+            let rvt = seq_mangle();
+            writeln!(out, "  %{} = call {} @{}({})", rvt, type_to_ir(&expr.ty), nm, args_string)?;
+            format!("%{}", rvt)
+        },
         ExpressionType::BinOp(o1, bo, o2) => {
             debug_assert_eq!(o1.ty, o2.ty);
             writeln!(
@@ -151,12 +166,12 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 writeln!(out, "{}:", tt)?;
                 translate(out, body)?;
                 writeln!(out, "  br label %{}", exit)?;
-                
+
                 for elif in else_ifs {
                     writeln!(out, "; false case")?;
                     // we use the previous false tag, giving a chaining effect
                     writeln!(out, "{}:", ft)?;
-                    
+
                     let cond = translate_expr(out, &elif.0.inner)?;
                     // we update it here for the next iteration (next `else if`) if there is one
                     ft = seq_mangle();
@@ -171,7 +186,7 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 // write the final tag. if there is no `else`, this tag is wasted, but it removes
                 // some nasty code in the above loop so i'm okay with it.
                 // this code would need to check if it was the last iteration of the loop, and if
-                // it was use exit as the false-case. as it is, there's always a dangling tag, so 
+                // it was use exit as the false-case. as it is, there's always a dangling tag, so
                 // this cleans it up.
                 writeln!(out, "; false case")?;
                 writeln!(out, "{}: ", ft)?;

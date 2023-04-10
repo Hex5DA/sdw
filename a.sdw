@@ -1,10 +1,8 @@
-fn int main() {
-    let a = 10;
-    if a < 5 {
-        return 0;
-    } else if a < 10 {
-        return 6;
-    }
+fn int second(int a, int b) {
+    return a + b;
+}
 
-    return 8;
+fn int main() {
+    let a = second();
+    return a;
 }

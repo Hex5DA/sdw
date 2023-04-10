@@ -18,6 +18,7 @@ pub enum Expression {
     IntLit(i64),
     BoolLit(bool),
     Variable(String),
+    FnCall(String, Vec<ExprWrapper>),
     BinOp(ExprWrapper, BinOpTypes, ExprWrapper),
     Comp(ExprWrapper, CompTypes, ExprWrapper),
     Group(ExprWrapper),
@@ -89,7 +90,19 @@ impl ParseBuffer {
                     Literals::Boolean(b) => Expression::BoolLit(b),
                     Literals::Integer(n) => Expression::IntLit(n),
                 },
-                LexemeTypes::Idn(name) => Expression::Variable(name),
+                LexemeTypes::Idn(name) => match self.peek()?.ty {
+                    LexemeTypes::OpenParen => {
+                        self.pop().unwrap();
+                        let mut args = Vec::new();
+                        while self.peek()?.ty != LexemeTypes::CloseParen {
+                            args.push(self.parse_expr()?.into());
+                            self.consume(LexemeTypes::Comma)?;
+                        }
+                        self.consume(LexemeTypes::CloseParen)?;
+                        Expression::FnCall(name, args)
+                    }
+                    _ => Expression::Variable(name),
+                },
                 LexemeTypes::OpenParen => {
                     let expr = self.parse_expr()?;
                     let end = self.consume(LexemeTypes::CloseParen)?.span;

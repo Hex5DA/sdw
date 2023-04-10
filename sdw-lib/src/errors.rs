@@ -168,6 +168,10 @@ pub enum SemErrors {
     VariableNotFound(String),
     #[error("an if/else if's condition was not a boolean, but of type '{0:?}'")]
     CondNotBool(Type),
+    #[error("the argument passed to a function was incorrect - expected '{0:?}' but got '{1:?}'")]
+    ArgTyMismatch(Type, Type),
+    #[error("the function named '{0}' was not found")]
+    FunctionNotFound(String),
 }
 
 impl From<SemErrors> for ErrType {

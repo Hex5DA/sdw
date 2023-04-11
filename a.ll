@@ -1,25 +1,20 @@
-define i64 @add(i64 %a, i64 %b) {
+define i64 @second(i64 %a) {
   %.1 = alloca i64
   store i64 %a, ptr %.1
-  %.2 = alloca i64
-  store i64 %b, ptr %.2
-  ; 'addition' binop
-  ; dereferencing 'a'
-  %.3 = load i64, ptr %.1
-  ; dereferencing 'b'
-  %.4 = load i64, ptr %.2
-  %.5 = add i64 %.3, %.4
-  ret i64 %.5
+  ret i64 1
   unreachable
 }
 define i64 @main() {
   ; allocating 'a'
-  %.6 = alloca i64
-  %.7 = call i64 @add(i64 8, i64 4)
-  store i64 %.7, ptr %.6
+  %.2 = alloca i64
+  store i64 5, ptr %.2
+  store i64 10, ptr %.2
   ; dereferencing 'a'
-  %.8 = load i64, ptr %.6
-  ret i64 %.8
+  %.3 = load i64, ptr %.2
+  call i64 @second(i64 %.3)
+  ; dereferencing 'a'
+  %.4 = load i64, ptr %.2
+  ret i64 %.4
   unreachable
 }
 

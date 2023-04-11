@@ -174,6 +174,8 @@ pub enum SemErrors {
     FunctionNotFound(String),
     #[error("expected '{0}' arguments, but found '{1}'")]
     MismatchedNumArgs(usize, usize),
+    #[error("the variable '{0}' had the type '{1:?}', but the reassignment expression has the type '{2:?}'")]
+    CannotReassignVariableType(String, Type, Type),
 }
 
 impl From<SemErrors> for ErrType {

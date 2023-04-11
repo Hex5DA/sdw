@@ -1,8 +1,10 @@
-fn int add(int a, int b) {
-    return a + b;
+fn int second(int a) {
+    return 1;
 }
 
 fn int main() {
-    let a = add(8, 4);
-    return a;
+   let a = 5;
+   a = 10;
+   second(a);
+   return a;
 }

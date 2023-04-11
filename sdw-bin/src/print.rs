@@ -68,6 +68,7 @@ pub fn print(block: &Block, idn: u64) {
                     print(else_block, idn + 2);
                 }
             }
+            _ => todo!("TODO: this whole module is borked; rework"),
         }
     }
 }

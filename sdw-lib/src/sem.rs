@@ -109,6 +109,15 @@ pub enum AbstractNodeType {
         else_block: Option<AbstractBlock>,
         else_ifs: Vec<(Spanned<AbstractExpression>, AbstractBlock)>,
     },
+    VRes {
+        new: AbstractExpression,
+        name: Spanned<String>,
+    },
+    StandFnCall {
+        name: Spanned<String>,
+        args: Vec<AbstractExpression>,
+        rty: Type,
+    },
 }
 
 impl AbstractNode {
@@ -350,6 +359,90 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                     },
                     node.span,
                 )
+            }
+            SyntaxNodeType::VRes { new, name } => {
+                let new = expression(sb, new.inner, new.span)?;
+                let mut rval = None;
+                for scope in &sb.scopes {
+                    if let Some(ty) = scope.variables.get(&name.inner) {
+                        if ty != &new.ty {
+                            return Err(ShadowError::from_pos(
+                                SemErrors::CannotReassignVariableType(name.inner, ty.clone(), new.ty),
+                                node.span,
+                            ));
+                        } else {
+                            rval = Some(AbstractNode::new(
+                                AbstractNodeType::VRes {
+                                    new,
+                                    name: name.clone(),
+                                },
+                                node.span,
+                            ));
+                            break;
+                        }
+                    }
+                }
+                if let Some(rval) = rval {
+                    rval
+                } else {
+                    return Err(ShadowError::from_pos(
+                        SemErrors::VariableNotFound(name.inner),
+                        node.span,
+                    ));
+                }
+            }
+            SyntaxNodeType::StandFnCall { name, args } => {
+                // TODO: this is staright copied from expression()
+                let fname = name.clone(); // prevent shadowing
+                let mut nargs = Vec::new();
+                let mut rval = None;
+                for a in &args {
+                    nargs.push(expression(sb, a.inner.clone(), a.span)?);
+                }
+                for fndef in &sb.functions {
+                    if let SyntaxNode {
+                        ty: SyntaxNodeType::Function { params, rty, name, .. },
+                        ..
+                    } = fndef
+                    {
+                        if name.inner == fname.inner {
+                            if nargs.len() != params.len() {
+                                return Err(ShadowError::from_pos(
+                                    SemErrors::MismatchedNumArgs(params.len(), args.len()),
+                                    node.span,
+                                ));
+                            }
+
+                            for (arg, param) in nargs.iter().zip(params) {
+                                let pty = Type::from_string(param.0.inner.clone(), param.0.span)?;
+                                if arg.ty != pty {
+                                    return Err(ShadowError::from_pos(
+                                        SemErrors::ArgTyMismatch(pty, arg.ty.clone()),
+                                        arg.span,
+                                    ));
+                                }
+                            }
+                            rval = Some(AbstractNode::new(
+                                AbstractNodeType::StandFnCall {
+                                    name: name.clone(),
+                                    args: nargs.clone(),
+                                    rty: Type::from_string(rty.inner.clone(), rty.span)?,
+                                },
+                                node.span,
+                            ));
+                        }
+                    } else {
+                        unreachable!()
+                    }
+                }
+                if let Some(rval) = rval {
+                    rval
+                } else {
+                    return Err(ShadowError::from_pos(
+                        SemErrors::FunctionNotFound(name.inner),
+                        node.span,
+                    ));
+                }
             }
         });
     }

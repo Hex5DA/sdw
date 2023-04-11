@@ -28,6 +28,14 @@ pub enum SyntaxNodeType {
         init: Spanned<Expression>,
         name: Spanned<String>,
     },
+    VRes {
+        new: Spanned<Expression>,
+        name: Spanned<String>,
+    },
+    StandFnCall {
+        name: Spanned<String>,
+        args: Vec<Spanned<Expression>>,
+    },
     If {
         cond: Spanned<Expression>,
         body: SyntaxBlock,
@@ -237,6 +245,60 @@ impl ParseBuffer {
             Span::from_to(start, end),
         ))
     }
+
+    fn parse_idn_start(&mut self) -> Result<SyntaxNode> {
+        let (idn, idn_l) = self.eat_idn()?;
+        let spanned = Spanned::new(idn_l.span, idn);
+
+        Ok(
+            if let Lexeme {
+                ty: LexemeTypes::OpenParen,
+                ..
+            } = self.peek()?
+            {
+                self.parse_standalone_fncall(spanned)?
+            } else {
+                self.parse_vres(spanned)?
+            },
+        )
+    }
+
+    fn parse_standalone_fncall(&mut self, name: Spanned<String>) -> Result<SyntaxNode> {
+        self.consume(LexemeTypes::OpenParen).unwrap();
+        let mut args = Vec::new();
+        if self.peek()?.ty != LexemeTypes::CloseParen {
+            loop {
+                args.push(self.parse_expr()?.into());
+                if self.peek()?.ty == LexemeTypes::Comma {
+                    self.consume(LexemeTypes::Comma)?;
+                } else {
+                    break;
+                }
+            }
+        }
+        self.consume(LexemeTypes::CloseParen).unwrap();
+        let end = self.consume(LexemeTypes::Semicolon)?.span;
+        Ok(SyntaxNode::new(
+            SyntaxNodeType::StandFnCall {
+                name: name.clone(),
+                args,
+            },
+            Span::from_to(name.span, end),
+        ))
+    }
+
+    fn parse_vres(&mut self, name: Spanned<String>) -> Result<SyntaxNode> {
+        self.consume(LexemeTypes::Equals)?;
+        let expr = self.parse_expr()?;
+        let end = self.consume(LexemeTypes::Semicolon)?.span;
+        Ok(SyntaxNode::new(
+            SyntaxNodeType::VRes {
+                new: expr,
+                name: name.clone(),
+            },
+            Span::from_to(name.span, end),
+        ))
+    }
 }
 
 fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
@@ -256,6 +318,7 @@ fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
                 Keywords::If => pb.parse_if()?,
                 Keywords::Else => return Err(ShadowError::from_pos(ParseErrors::ElseOutsideIf, next.span)),
             },
+            LexemeTypes::Idn(_) => pb.parse_idn_start()?,
             LexemeTypes::CloseBrace => unreachable!(),
             _ => panic!("could not parse a statement, for some reason."),
         };

@@ -221,6 +221,24 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
                 writeln!(out, "; conditional exit label")?;
                 writeln!(out, "{}:", exit)?;
             }
+            NodeType::VRes { new, name } => {
+                let tag = translate_expr(out, new)?;
+                let ntag = get_va(name.inner.clone());
+                writeln!(out, "  store {} {}, ptr %{}", type_to_ir(&new.ty), tag, ntag)?;
+            }
+            NodeType::StandFnCall { name, args, rty } => {
+                let mut args_string = String::new();
+                for (idx, arg) in args.iter().enumerate() {
+                    let tag = translate_expr(out, arg)?;
+                    args_string.push_str(format!("{} {}", type_to_ir(&arg.ty), tag).as_str());
+
+                    if idx < args.len() - 1 {
+                        args_string.push_str(", ");
+                    }
+                }
+
+                writeln!(out, "  call {} @{}({})", type_to_ir(&rty), name.inner, args_string)?;
+            }
         }
     }
 

@@ -2,6 +2,10 @@ use sdw_lib::consumer::prelude::*;
 use sdw_lib::mangle::*;
 
 use std::io::{Result, Write};
+use std::sync::Mutex;
+
+/// (start_tag, end_tag)
+static LOOPS: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
 
 fn type_to_ir(ty: &Type) -> &str {
     match ty {
@@ -239,7 +243,25 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
 
                 writeln!(out, "  call {} @{}({})", type_to_ir(&rty), name.inner, args_string)?;
             }
-            _ => todo!(),
+            NodeType::Loop { body } => {
+                let lp_start = seq_mangle();
+                let lp_end = seq_mangle();
+                LOOPS.lock().unwrap().push((lp_start.clone(), lp_end.clone()));
+                writeln!(out, "  br label %{}", lp_start)?;
+                writeln!(out, "; loop")?;
+                writeln!(out, "{}:", lp_start)?;
+                translate(out, body)?;
+                writeln!(out, "  br label %{}", lp_start)?;
+                writeln!(out, "{}:", lp_end)?;
+            }
+            NodeType::Continue => {
+                let lp_start = LOOPS.lock().unwrap().last().unwrap().0.clone();
+                writeln!(out, "  br label %{}", lp_start)?;
+            }
+            NodeType::Break => {
+                let lp_end = &LOOPS.lock().unwrap().last().unwrap().1.clone();
+                writeln!(out, "  br label %{}", lp_end)?;
+            }
         }
         // notes on how to translate looping:
         // <https://godbolt.org/z/6zjEoMEhn>

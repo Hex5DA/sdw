@@ -42,6 +42,11 @@ pub enum SyntaxNodeType {
         else_block: Option<SyntaxBlock>,
         else_ifs: Vec<(Spanned<Expression>, SyntaxBlock)>,
     },
+    Loop {
+        body: SyntaxBlock,
+    },
+    Break,
+    Continue,
 }
 
 #[derive(Debug, Clone)]
@@ -299,6 +304,26 @@ impl ParseBuffer {
             Span::from_to(name.span, end),
         ))
     }
+
+    fn parse_break(&mut self) -> Result<SyntaxNode> {
+        let start = self.pop().unwrap().span;
+        let end = self.consume(LexemeTypes::Semicolon)?.span;
+        Ok(SyntaxNode::new(SyntaxNodeType::Break, Span::from_to(start, end)))
+    }
+
+    fn parse_continue(&mut self) -> Result<SyntaxNode> {
+        let start = self.pop().unwrap().span;
+        let end = self.consume(LexemeTypes::Semicolon)?.span;
+        Ok(SyntaxNode::new(SyntaxNodeType::Continue, Span::from_to(start, end)))
+    }
+
+    fn parse_loop(&mut self) -> Result<SyntaxNode> {
+                    let start = self.pop().unwrap().span;
+            self.consume(LexemeTypes::OpenBrace)?;
+            let body = _parse(self)?;
+            let end = self.consume(LexemeTypes::CloseBrace)?.span;
+                    Ok(SyntaxNode::new(SyntaxNodeType::Loop { body }, Span::from_to(start, end)))
+    }
 }
 
 fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
@@ -317,10 +342,13 @@ fn _parse(pb: &mut ParseBuffer) -> Result<SyntaxBlock> {
                 Keywords::Let => pb.parse_vdec()?,
                 Keywords::If => pb.parse_if()?,
                 Keywords::Else => return Err(ShadowError::from_pos(ParseErrors::ElseOutsideIf, next.span)),
+                Keywords::Loop => pb.parse_loop()?,
+                Keywords::Continue => pb.parse_continue()?,
+                Keywords::Break => pb.parse_break()?,
             },
             LexemeTypes::Idn(_) => pb.parse_idn_start()?,
             LexemeTypes::CloseBrace => unreachable!(),
-            _ => panic!("could not parse a statement, for some reason."),
+            _ => panic!("could not parse a statement, for some reason: next: {}", next.ty),
         };
         block.push(node);
     }

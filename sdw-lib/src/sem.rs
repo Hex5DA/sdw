@@ -68,6 +68,7 @@ impl Scope {
 
 struct SemanticBuffer {
     functions: VecDeque<SyntaxNode>,
+    loops: VecDeque<SyntaxNode>,
     scopes: VecDeque<Scope>,
 }
 
@@ -75,6 +76,7 @@ impl SemanticBuffer {
     fn new() -> Self {
         Self {
             functions: VecDeque::new(),
+            loops: VecDeque::new(),
             scopes: VecDeque::new(),
         }
     }
@@ -118,6 +120,11 @@ pub enum AbstractNodeType {
         args: Vec<AbstractExpression>,
         rty: Type,
     },
+    Loop {
+        body: AbstractBlock,
+    },
+    Continue,
+    Break
 }
 
 impl AbstractNode {
@@ -443,6 +450,26 @@ fn _semantic(sb: &mut SemanticBuffer, block: SyntaxBlock) -> Result<AbstractBloc
                         node.span,
                     ));
                 }
+            }
+            SyntaxNodeType::Loop { ref body } => {
+                sb.loops.push_front(node.clone());
+                let rval = AbstractNode::new(AbstractNodeType::Loop { body: _semantic(sb, body.clone())? }, node.span);
+                sb.loops.pop_front();
+                rval
+            },
+            SyntaxNodeType::Continue => {
+                if sb.loops.is_empty() {
+                    return Err(ShadowError::from_pos(SemErrors::ContinueOutsideLoop, node.span));
+                }
+
+                AbstractNode::new(AbstractNodeType::Continue, node.span)
+            },
+            SyntaxNodeType::Break => {
+                if sb.loops.is_empty() {
+                    return Err(ShadowError::from_pos(SemErrors::BreakOutsideLoop, node.span));
+                }
+
+                AbstractNode::new(AbstractNodeType::Break, node.span)
             }
         });
     }

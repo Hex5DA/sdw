@@ -176,6 +176,10 @@ pub enum SemErrors {
     MismatchedNumArgs(usize, usize),
     #[error("the variable '{0}' had the type '{1:?}', but the reassignment expression has the type '{2:?}'")]
     CannotReassignVariableType(String, Type, Type),
+    #[error("the break keyword must only be used inside a loop")]
+    BreakOutsideLoop,
+    #[error("the continue keyword may only be used inside a loop")]
+    ContinueOutsideLoop,
 }
 
 impl From<SemErrors> for ErrType {

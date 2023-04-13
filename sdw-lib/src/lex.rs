@@ -18,6 +18,9 @@ pub enum Keywords {
     Let,
     If,
     Else,
+    Loop,
+    Break,
+    Continue,
 }
 
 impl Keywords {
@@ -28,6 +31,9 @@ impl Keywords {
             "let" => Keywords::Let,
             "if" => Keywords::If,
             "else" => Keywords::Else,
+            "loop" => Keywords::Loop,
+            "break" => Keywords::Break,
+            "continue" => Keywords::Continue,
             _ => return None,
         })
     }
@@ -44,6 +50,9 @@ impl Display for Keywords {
                 Self::Let => "let",
                 Self::If => "if",
                 Self::Else => "else",
+                Self::Loop => "loop",
+                Self::Break => "break",
+                Self::Continue => "continue",
             }
         )
     }

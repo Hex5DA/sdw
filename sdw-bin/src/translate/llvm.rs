@@ -239,7 +239,10 @@ pub fn translate<W: Write>(out: &mut W, block: &Block) -> Result<()> {
 
                 writeln!(out, "  call {} @{}({})", type_to_ir(&rty), name.inner, args_string)?;
             }
+            _ => todo!(),
         }
+        // notes on how to translate looping:
+        // <https://godbolt.org/z/6zjEoMEhn>
     }
 
     Ok(())

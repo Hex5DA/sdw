@@ -1,3 +1,0 @@
-fn void test(int arg, int secondarg) {
-    return;
-}

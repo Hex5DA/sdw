@@ -1,4 +1,0 @@
-fn int main() {
-    let returnval = 5;
-    return returnval;
-}

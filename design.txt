@@ -87,16 +87,25 @@ there are very few statements.
 statements must be followed by a semicolon (;)
 
 function declarations:
+functions may be overloaded, by providing args of different types.
 [TODO: re-reevaluate the feasiility of continuations in some form]
 
 ```sdw
-fn [return_type] [name]([[type] [name]]?*) [expr]
+fn [return_type] [name]([[type] [name]]?*) [expr];
 ```
 
--> `return [expr]`
+-> `return [expr];`
     may only be present inside a function expression.
     enables early return.
     the type of `[expr]` must equal the type of `[return_type]`
+
+function stub:
+instructs the compiler there is a function, but does not provide the body.
+used to produce interfaces and external function bodies.
+
+```sdw
+fn [name]([type]?*);
+```
 
 macro declarations:
 functions whcih run at compile time. using the keyword `state` they can get access to a lot of compile-time info, such as invocation 
@@ -106,7 +115,7 @@ note: NO RETURN VALUES MAY BE PRESENT.
     -> a macro "returns" by modifying the AST at its invocation directly.
 
 ```sdw
-mac [name]\[\] [expr]
+mac [name]\[\] [expr];
 ```
 
 loops:
@@ -114,7 +123,7 @@ loops:
 the value of the `expr` is not utilised.
 
 ```sdw
-loop [expr]
+loop [expr];
 ```
 
 goto / labels:
@@ -192,17 +201,24 @@ where:
 
 - type name (can be user declared with `type` or a primitive type`)
     primtive types:
-    * `int` / `unt`
+    * `int` / `unt` (64 bit by default? more integer types?)
     * `float`
     * `bool`
     * `string` [TODO: go further in depth]
     * NOTE: no primitive array types
+    * NOTE: no null type
 - structure defintion
 
 ```sdw
 type [name] struct [[{ \
     [[type expression] [name][,]-1?]* \
 }] | ;]
+```
+
+- pointer
+
+```sdw
+&[type]
 ```
 
 - function / macro pointer
@@ -226,15 +242,69 @@ fn void run_the_thing(fp do_fp, mp do_mp) {
 dot notation for both pointers to structs and structs (`.`).
 
 ```sdw
-[struct literal / pointer].[member name]
+[struct literal].[member name]
+```
+
+### pointers
+
+to take a pointer:
+
+```sdw
+&[variable expression]
+```
+
+to dereference a pointer:
+
+```sdw
+*[pointer expression]
+```
+
+pointer arithmetic is disallowed.
+[TODO: are there any uses for this outside of array indexing?]
+
+## generic system
+
+'generics' are a slight extension of the function overloading system.
+WORKING NOTES:
+
+* monomorphisation (generally, functions are polymorphic. this applies everywhere)
+
+```sdw
+type Print;
+fn print(Print);
+type Debug;
+fn debug(Debug);
+
+type Test struct;
+#[ implements Print ]
+fn print(Test to_print) {
+    stdlib.printLn("test print");
+}
+
+#[ implements Debug ]
+fn debug(Test to_dbg_print) {
+    stdlib.printLn("test print");
+}
+
+// for simple examples, the interface tyoe can be specified like so
+fn debug(Debug debug_print) {
+    debug(debug_print);
+}
+
+// for more complex relationships, the type can be declared outside of the function context
+[TODO: + or & or..?]
+type DoType Debug + Print;
+fn do(DoType do_on) {
+    print(to_on);
+    debug(do_on);
+}
 ```
 
 ## TODO
 
+[1/2] generics
+[1/2] interfaces
 [ ] address current TODO comments
-[ ] generics
-[ ] interfaces
 [ ] patterns
-[ ] plan out my `stdlib` implementation?
 [ ] more to come :eyes:
 

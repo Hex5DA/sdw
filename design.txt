@@ -1,0 +1,240 @@
+# shadow lang design
+
+i figured having something more complete might make development a little more collected
+so here is that, or something.
+
+## general syntax
+
+### comments
+
+- `//` from appearance to end of line
+- `/* */` inline or multiline
+- no further restrictions - eg. `//!` could be idiomatically a doc-comment, but this is not primitive nor standard-enforced
+
+### effectual directives
+
+in the form
+
+```sdw
+#[name] [arg]?*
+```
+
+may include:
+* `#link [file path]`                   -> instruct the compiler to link to another file
+* `#if [cond]`                          ] 
+* `#else if [cond]`                     ]} -> conditional compilation
+* `#else`                               ]
+* `#feature [name]`                     -> similar to `if` - check if feature flag has been enabled
+[TODO: evaluate plausability of using macros instead of directives for less primitives]
+
+not user declared.
+may not be present inline.
+
+### ineffectual directives
+
+in the form
+
+```shadow
+#\[[name] [arg]*?\]
+```
+
+these are user declared. [TODO: how?]
+they have no direct impact on compilation.
+compilers must parse them correctly, but are not required to take action upon them.
+they might, however, still produce warnings or errors.
+examples of usage:
+
+```sdw
+#[ must_be_read ]
+type Result = [..];
+
+function_returning_result([..]); // not handling the error produces a non-fatal, disableable warning.
+function_returning_result([..]).unwrap(); // value is utilised; no error
+                                          // note: example syntax.
+```
+
+they may also be used inline, though they have a low precedence so parenthesese may be required:
+
+```
+// compiler may be able to reason about the expression differently.
+(#[ num_in_range 0 100 ] function_returning_range()) - 50
+```
+
+### general language structure
+
+beyond the language standard, no further rules.
+* `stdlib`
+  * small `core` module must be present, containing the bare minimum necessary
+   namely: `syscall` wrappers [TODO: anything more?]
+  * no further requirements.
+* no ecosystem
+  - no formatting standard
+  - no idiomacy standard
+  - no package management
+  - no testing standards
+  - ect..
+* no compiler
+
+all the above are provided seperately no enable modularity inside the ecosystem.
+obviously, i will create a range of tooling, and standards to acompany them, but they are not mandatory to use.
+* not allowed to distribute wider ecosystem with `shadow` in name (prevent any kind of `shadow official tooling`)?
+
+## structures
+
+### statements
+
+there are very few statements.
+statements must be followed by a semicolon (;)
+
+function declarations:
+[TODO: re-reevaluate the feasiility of continuations in some form]
+
+```sdw
+fn [return_type] [name]([[type] [name]]?*) [expr]
+```
+
+-> `return [expr]`
+    may only be present inside a function expression.
+    enables early return.
+    the type of `[expr]` must equal the type of `[return_type]`
+
+macro declarations:
+functions whcih run at compile time. using the keyword `state` they can get access to a lot of compile-time info, such as invocation 
+circumstances, the program AST, full project metadata ect..
+[TODO: re-reevaluate the naming (macro is somewhat misleading)]
+note: NO RETURN VALUES MAY BE PRESENT.
+    -> a macro "returns" by modifying the AST at its invocation directly.
+
+```sdw
+mac [name]\[\] [expr]
+```
+
+loops:
+1 of 3 forms of control flow in `sdw`
+the value of the `expr` is not utilised.
+
+```sdw
+loop [expr]
+```
+
+goto / labels:
+
+```sdw
+:[name]; // declare label
+goto :[name]; // jump to a label
+```
+
+no `break` / `continue` primtives - encourage usage of `goto` for this purpose.
+
+[TODO: consider ditching `loop` and just using `goto` + conditionals. could use convenience macro - like for `while` / `for`]
+
+type declaration:
+
+```sdw
+type [name] [type expression];
+```
+
+### expressions
+
+the main structure of sdw
+an expression evaluates to a singluar value.
+this value can be discarded by following the offending expression with a semicolon (`;`)
+*discarded values are still evaluated*
+
+```sdw
+fn foo() {
+    std.printLn("side effect!");
+}
+
+fn main() {
+    // although this expression is discarded, the print still runs.
+    foo();
+}
+```
+
+an unused expression value is a compiletime error.
+
+### arithmetic
+
+binary ops: `+`, `-`, `*`, `/`
+bitwise ops: `|`, `&`, `~`, `^` `>>`, `<<`
+logical operators: `&&`, `||`
+
+as you'd expect
+
+### blocks
+
+a block - written `{ [constituent expressions]?* }` - evaluates to the value of the last member expressions
+*this also applies to discarded final member expressions.* ie.
+
+```sdw
+{
+    std.printLn("hello world!");
+} // this block has a discarded value.
+```
+
+---
+relatedly, expressions can be grouped just as one would expect with parenthesese (`()`)
+
+### conditional control flow
+
+`if`, `else if` and `else` all work as you would expect.
+
+```sdw
+if [E^1^] [E^2^] [else if [E^1^] [E^2^]]?* [else [E^2^]]?
+```
+
+where:
+`[E^1^]` -> evaluates to a boolean. the conditional.. conditional
+`[E^2^]` -> an expression as the body. the matching arm is what the whole expression evaluates to.
+
+### type expressions
+
+- type name (can be user declared with `type` or a primitive type`)
+    primtive types:
+    * `int` / `unt`
+    * `float`
+    * `bool`
+    * `string` [TODO: go further in depth]
+    * NOTE: no primitive array types
+- structure defintion
+
+```sdw
+type [name] struct [[{ \
+    [[type expression] [name][,]-1?]* \
+}] | ;]
+```
+
+- function / macro pointer
+[TODO: re-reevaluate macro pointer syntax]
+
+```
+fn int do_the_thing(int arg1, int arg2) arg1 + arg2
+type fp (int, int) -> int;
+
+mac do_the_thing[] [..]
+type mp [];
+
+fn void run_the_thing(fp do_fp, mp do_mp) {
+    do_fp(1, 2); // 3
+    do_mp[]; // invokes the do_the_thing macro
+}
+```
+
+### `struct` member access
+
+dot notation for both pointers to structs and structs (`.`).
+
+```sdw
+[struct literal / pointer].[member name]
+```
+
+## TODO
+
+[ ] address current TODO comments
+[ ] generics
+[ ] interfaces
+[ ] patterns
+[ ] plan out my `stdlib` implementation?
+[ ] more to come :eyes:
+

@@ -1,6 +1,10 @@
 # Shadow
 
-A toy language I'm making for shits and giggles!
+A toy language.
+
+Though this project was abandoned, I plan to resume work on it soon.
+
+The notes following do not reflect the current state of the language design, or the language capabilities as they stood.
 
 Will sort this out properly, but some working design notes:
 
@@ -97,7 +101,7 @@ You could also build to LLVM bitcode with:
 I wrote a quick & dirty shell script to do this for me,
 but there are no promises this'll work for you :sweat_smile:
 
-## Testing
+~~## Testing~~
 
 I wrote a simple testing framework in the form of a python script - `tests/test.py`.
 
@@ -112,4 +116,3 @@ so there's no guarantees :P
 I imagine it'd be pretty simple to modify, though
 
 `test.py` should be invoked with a list of the blocks to run, or standalone to run all blocks.
-

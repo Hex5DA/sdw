@@ -87,7 +87,7 @@ there are very few statements.
 statements must be followed by a semicolon (;)
 
 function declarations:
-functions may be overloaded, by providing args of different types.
+
 [TODO: re-reevaluate the feasiility of continuations in some form]
 
 ```sdw
@@ -140,7 +140,14 @@ no `break` / `continue` primtives - encourage usage of `goto` for this purpose.
 type declaration:
 
 ```sdw
-type [name] [type expression];
+type [name] [type bound];
+```
+
+variable declaration:
+[TODO: revisit patterns]
+
+```sdw
+let [name] = [expr];
 ```
 
 ### expressions
@@ -197,7 +204,21 @@ where:
 `[E^1^]` -> evaluates to a boolean. the conditional.. conditional
 `[E^2^]` -> an expression as the body. the matching arm is what the whole expression evaluates to.
 
-### type expressions
+### type bounds 
+
+- none
+declares generic type
+  
+```sdw
+type [name];
+```
+
+- generic aggregator
+declare a type to be compatible with multiple generics
+
+```sdw
+type [unbound type] + [[unbound type] [+]-1?]?+;
+```
 
 - type name (can be user declared with `type` or a primitive type`)
     primtive types:
@@ -207,6 +228,7 @@ where:
     * `string` [TODO: go further in depth]
     * NOTE: no primitive array types
     * NOTE: no null type
+
 - structure defintion
 
 ```sdw
@@ -265,9 +287,10 @@ pointer arithmetic is disallowed.
 ## generic system
 
 'generics' are a slight extension of the function overloading system.
-WORKING NOTES:
-
-* monomorphisation (generally, functions are polymorphic. this applies everywhere)
+declare a generic type by omitting a type bound.
+you can then declare a function stub, substituting the generic bound for a resolute struct.
+it acts like any other polymorphic function. the most specific implementation is used (ie. the passed type matches the resolute type)
+example:
 
 ```sdw
 type Print;
@@ -276,34 +299,29 @@ type Debug;
 fn debug(Debug);
 
 type Test struct;
-#[ implements Print ]
 fn print(Test to_print) {
     stdlib.printLn("test print");
 }
 
-#[ implements Debug ]
 fn debug(Test to_dbg_print) {
-    stdlib.printLn("test print");
+    stdlib.printLn("test debug");
 }
 
-// for simple examples, the interface tyoe can be specified like so
+// for simple examples, the interface tyoe can be specified like usual
 fn debug(Debug debug_print) {
     debug(debug_print);
 }
 
 // for more complex relationships, the type can be declared outside of the function context
-[TODO: + or & or..?]
 type DoType Debug + Print;
 fn do(DoType do_on) {
-    print(to_on);
+    print(do_on);
     debug(do_on);
 }
 ```
 
 ## TODO
 
-[1/2] generics
-[1/2] interfaces
 [ ] address current TODO comments
 [ ] patterns
 [ ] more to come :eyes:

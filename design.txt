@@ -12,6 +12,7 @@ so here is that, or something.
 - no further restrictions - eg. `//!` could be idiomatically a doc-comment, but this is not primitive nor standard-enforced
 
 ### effectual directives
+[TODO: consider scrapping these??]
 
 in the form
 
@@ -150,7 +151,16 @@ variable declaration:
 let [name] = [expr];
 ```
 
-### expressions
+## macro invocations
+
+since they add to the program AST, they do not fall into either expressions or statements (rather, the code they produce does)
+the syntax is as follows:
+
+```sdw
+[name]\[\]
+```
+
+## expressions
 
 the main structure of sdw
 an expression evaluates to a singluar value.
@@ -170,11 +180,23 @@ fn main() {
 
 an unused expression value is a compiletime error.
 
-### arithmetic
+### operators
 
-binary ops: `+`, `-`, `*`, `/`
-bitwise ops: `|`, `&`, `~`, `^` `>>`, `<<`
-logical operators: `&&`, `||`
+binary: `+`, `-`, `*`, `/`, `%`
+bitwise: `|`, `&`, `~`, `^` `>>`, `<<`
+unary: `-`, `+`
+-> operands must be integers
+
+logical: `&&`, `||`, `!`
+comparison: `>`, `>=`, `<`, `<=`, `==`, `!=` 
+-> operands must be booleans
+
+referal: `&`
+-> unary
+indirection: `*`
+-> unary; operand must be of type pointer
+
+[TODO: `sizeof`, `typeof`, type conversions ect..? <https://en.wikipedia.org/wiki/Operators_in_C_and_C%2B%2B>]
 
 as you'd expect
 
@@ -192,6 +214,37 @@ a block - written `{ [constituent expressions]?* }` - evaluates to the value of 
 ---
 relatedly, expressions can be grouped just as one would expect with parenthesese (`()`)
 
+### `struct` member access
+
+dot notation for both pointers to structs and structs (`.`).
+
+```sdw
+[struct literal].[member name]
+```
+
+### pointers
+
+to take a pointer:
+
+```sdw
+&[variable expression]
+```
+
+to dereference a pointer:
+
+```sdw
+*[pointer expression]
+```
+
+pointer arithmetic is disallowed.
+[TODO: are there any uses for this outside of array indexing?]
+
+### function call
+
+```sdw
+[name]([name]?*)
+```
+
 ### conditional control flow
 
 `if`, `else if` and `else` all work as you would expect.
@@ -204,7 +257,7 @@ where:
 `[E^1^]` -> evaluates to a boolean. the conditional.. conditional
 `[E^2^]` -> an expression as the body. the matching arm is what the whole expression evaluates to.
 
-### type bounds 
+## type bounds 
 
 - none
 declares generic type
@@ -259,31 +312,6 @@ fn void run_the_thing(fp do_fp, mp do_mp) {
 }
 ```
 
-### `struct` member access
-
-dot notation for both pointers to structs and structs (`.`).
-
-```sdw
-[struct literal].[member name]
-```
-
-### pointers
-
-to take a pointer:
-
-```sdw
-&[variable expression]
-```
-
-to dereference a pointer:
-
-```sdw
-*[pointer expression]
-```
-
-pointer arithmetic is disallowed.
-[TODO: are there any uses for this outside of array indexing?]
-
 ## generic system
 
 'generics' are a slight extension of the function overloading system.
@@ -320,9 +348,102 @@ fn do(DoType do_on) {
 }
 ```
 
+## moduling
+
+a module is the `sdw` esquivalent of a `namespace` & is its translation unit.
+they are declared with the `mod` keyword.
+
+```sdw
+mod [name] [[{[statements]*}] | ;]
+```
+
+the properties of a module can be accessed using a colon:
+
+```sdw
+[name]:[member name]
+```
+
 ## TODO
 
-[ ] address current TODO comments
-[ ] patterns
-[ ] more to come :eyes:
+* address current TODO comments
+* type conversions
+* operator precedence
+
+## random shit
+
+emulation of `enum`s in shadow
+(rust vs `sdw`)
+
+```rs
+enum State {
+    Done,
+    Loading,
+    Starting
+}
+
+fn progress(state: &State) {
+    match {
+        State::Done => println!("task is done"),
+        State::Loading => println!("task is loading"),
+        State::Starting => println!("task has started")
+    }
+}
+
+fn main() {
+    progress(State::Starting);
+}
+```
+
+```sdw
+type State;
+fn progress(State);
+type Loading struct;
+type Starting struct;
+type Done struct;
+
+fn void progress(&Loading state) {
+    stdlib.println("task is loading");
+}
+fn void progress(&Starting state) {
+    stdlib.println("task has started"); 
+}
+fn void progress(&Done state) {
+    stdlib.println("task is done");
+}
+
+fn int main() {
+    progress(Starting {});
+    return 0;
+}
+```
+
+and another with tuple enum fields
+
+```rs
+enum Event {
+    Col(u16, u16, u16),
+    Quit
+}
+
+fn run(event: Event) {
+    match event {
+        Event::Col(r, g, b) => println!("red: {r}, green: {g}, blue: {b}"),
+        Event::Quit => println!("application close"),
+    }
+}
+```
+
+```sdw
+type Event;
+fn run(Event);
+type Col struct { unt r, unt g, unt b };
+type Quit struct;
+
+fn run(Col event) {
+    stdlib.println("red: {}, green: {}, blue: {}", event.r, event.g, event.b);
+}
+fn run(Quit event) {
+    stdlib.println("application close);
+}
+```
 

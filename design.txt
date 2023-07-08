@@ -130,8 +130,8 @@ loop [expr];
 goto / labels:
 
 ```sdw
-:[name]; // declare label
-goto :[name]; // jump to a label
+@[name]; // declare label
+goto @[name]; // jump to a label
 ```
 
 no `break` / `continue` primtives - encourage usage of `goto` for this purpose.
@@ -301,10 +301,10 @@ type [name] struct [[{ \
 
 ```
 fn int do_the_thing(int arg1, int arg2) arg1 + arg2
-type fp (int, int) -> int;
+type fp fn (int, int) -> int;
 
 mac do_the_thing[] [..]
-type mp [];
+type mp mc [];
 
 fn void run_the_thing(fp do_fp, mp do_mp) {
     do_fp(1, 2); // 3
@@ -361,6 +361,53 @@ the properties of a module can be accessed using a colon:
 
 ```sdw
 [name]:[member name]
+```
+
+## formal (ish) syntax
+
+so i don't know how to write the standard formal syntax
+and honestly i'm not using a parser generator so i don't see a point 😅
+so enjoy my delusional, bracket heavy version lol
+
+i'm not sure how to model complex relations (either formally or in my own script)
+so *this is not at all exhaustive*. once the language becomes more ratified, i might try a coomprehensive syntax.
+
+```syntax
+TODO            ->  ..
+IDN             ->  [_ | a-z | a-Z]?[_ | a-z | A-Z | 0-9]?*
+GLOBIDN         ->  [[[IDN:]-1?]IDN] | IDN
+
+EXPR            ->  [EXPR | EXPR;]
+_EXPR           ->  [_EXPR + _EXPR] | [_EXPR - _EXPR] | [_EXPR * _EXPR] | [_EXPR / _EXPR] | [_EXPR % _EXPR] |\
+                    [_EXPR | _EXPR] | [_EXPR & _EXPR] | [_EXPR ~ _EXPR] | [_EXPR ^ _EXPR] | [_EXPR >> _EXPR] | [_EXPR << _EXPR] |\
+                    [-_EXPR] | [+_EXPR] [_EXPR || _EXPR] | [_EXPR && _EXPR] | [!_EXPR] |\
+                    [_EXPR == _EXPR] | [_EXPR != _EXPR] | [_EXPR > _EXPR] | [_EXPR < _EXPR] | [_EXPR => _EXPR] | [_EXPR <= _EXPR] |\
+                    [&_EXPR] | [*_EXPR] |\
+                    { EXPR* } | (_EXPR) |\
+                    IDN.IDN |\
+                    GLOBIDN([IDN[,-1?]]?*) |\
+                    if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
+                    GLOBIDN |\
+                    [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
+
+TYPE            ->  IDN
+BOUND           ->  [] | [IDN[+-1?]]* |\
+                    int | unt | float | bool | string |\
+                    struct [[{[TYPE IDN[,]-1?]*}] | ;] |\
+                    &BOUND | [fn ([TYPE[,-1?]]?*) -> TYPE] | [mac \[\]]
+
+BLOCK           ->  [EXPR | STATEMENT]*
+STATEMENT       ->  fn TYPE IDN([TYPE IDN[,-1?]]?*) BLOCK; |\
+                    fn TYPE IDN([TYPE[,-1?]]?*); |\
+                    return BLOCK; |\
+                    mc IDC\[\] [EXPR | state]*; |\
+                    @IDN; |\
+                    goto @IDN; |\
+                    loop BLOCK; |\
+                    type TYPE BOUND; |\
+                    let IDN = BLOCK; |\
+                    mod IDN [BLOCK | ;] |\
+                    #\[IDN [a-z | A-Z | 0-9]?*\]
 ```
 
 ## TODO

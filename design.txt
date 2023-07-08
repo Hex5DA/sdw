@@ -373,8 +373,7 @@ i'm not sure how to model complex relations (either formally or in my own script
 so *this is not at all exhaustive*. once the language becomes more ratified, i might try a coomprehensive syntax.
 
 ```syntax
-TODO            ->  ..
-IDN             ->  [_ | a-z | a-Z]?[_ | a-z | A-Z | 0-9]?*
+IDN             ->  [_ | a-z | a-Z][_ | a-z | A-Z | 0-9]?*
 GLOBIDN         ->  [[[IDN:]-1?]IDN] | IDN
 
 EXPR            ->  [EXPR | EXPR;]
@@ -394,7 +393,7 @@ TYPE            ->  IDN
 BOUND           ->  [] | [IDN[+-1?]]* |\
                     int | unt | float | bool | string |\
                     struct [[{[TYPE IDN[,]-1?]*}] | ;] |\
-                    &BOUND | [fn ([TYPE[,-1?]]?*) -> TYPE] | [mac \[\]]
+                    &BOUND | [fn ([TYPE[,-1?]]?*) -> TYPE] | [mc \[\]]
 
 BLOCK           ->  [EXPR | STATEMENT]*
 STATEMENT       ->  fn TYPE IDN([TYPE IDN[,-1?]]?*) BLOCK; |\

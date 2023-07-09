@@ -1,9 +1,11 @@
 pub mod lexer;
+pub mod errors;
 
 pub mod common {
     pub type SpanInt = u64;
 
-    /// (sline, eline]; (scol, ecol]
+    // TODO: inclusive or exclusive??
+    #[derive(Debug, Clone, Copy, Default)]
     pub struct Span {
         pub sline: SpanInt,
         pub eline: SpanInt,
@@ -23,12 +25,9 @@ pub mod common {
                 ecol: to.ecol,
             }
         }
-
-        pub fn blank() -> Span {
-            Self { sline: 0, eline: 0, scol: 0, ecol: 0 }
-        }
     }
 
+    #[derive(Debug)]
     pub struct Spanned<T> {
         pub spanned: T,
         pub span: Span,
@@ -45,4 +44,5 @@ pub mod common {
 
 pub mod prelude {
     pub use crate::common::*;
+    pub use crate::errors::{Result, ErrType, LexErrors, SdwErr};
 }

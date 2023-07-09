@@ -1,5 +1,5 @@
 use clap::Parser;
-use sdw::lex;
+use sdw::lexer;
 use std::fs;
 use std::process;
 
@@ -11,7 +11,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let contents = fs::read_to_string(args.input).unwrap_or_else(|_| {
+    let contents = fs::read_to_string(&args.input).unwrap_or_else(|_| {
         eprintln!(
             "error: could not read from input file '{}' - does it exist?",
             args.input
@@ -19,9 +19,10 @@ fn main() {
         process::exit(1);
     });
 
-    let tokens = lex::lex(contents).unwrap_or_else(|err| {
-        eprintln!("TODO: error printing");
-        eprintln!("{}", err);
+    let tokens = lexer::lex(&contents).unwrap_or_else(|err| {
+        err.print(&contents);
         process::exit(1);
     });
+
+    println!("{}", tokens.iter().map(|tk| format!("{:?}", tk.spanned)).collect::<Vec<String>>().join("\n"));
 }

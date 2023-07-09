@@ -1,5 +1,13 @@
+use lazy_static::lazy_static;
+use std::str::FromStr;
 use crate::prelude::*;
+use regex::Regex;
 
+lazy_static! {
+    static ref IDN_REGEX: Regex = Regex::new(r"[_a-zA-Z][_a-zA-Z0-9]*").unwrap();
+}
+
+#[derive(Debug)]
 pub enum LexemeType {
     // arithmetic operators
     /// +
@@ -53,7 +61,7 @@ pub enum LexemeType {
     /// :
     Colon,
     /// ;
-    Semicolon,
+    Semi,
     /// .
     Period,
     /// ,
@@ -61,6 +69,8 @@ pub enum LexemeType {
 
     /// string of characters (`[_ | a-z | a-Z][_ | a-z | A-Z | 0-9]?*`)
     Idn(String),
+    Intlit(u64), // TODO: integer sizes??
+    BoolLit(bool),
 
     // keywords
     // procedures
@@ -94,10 +104,11 @@ pub enum LexemeType {
     Mod,
 }
 
-impl TryFrom<String> for LexemeType {
-    type Error = SdwError;
-    fn try_from(value: String) -> Result<Self> {
-        Ok(match value.as_str() {
+pub struct UnknownLexeme(String);
+impl FromStr for LexemeType {
+    type Err = UnknownLexeme;
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match value {
             "+" => Self::Cross,
             "-" => Self::Dash,
             "*" => Self::Ast,
@@ -135,7 +146,17 @@ impl TryFrom<String> for LexemeType {
             "type" => Self::Type,
             "let" => Self::Let,
             "mod" => Self::Mod,
-            _ => todo!()
+            "true" => Self::BoolLit(true),
+            "false" => Self::BoolLit(false),
+            tok => {
+                if IDN_REGEX.is_match(tok) {
+                    Self::Idn(tok.to_string())
+                } else if let Ok(num) = tok.parse::<u64>() {
+                    Self::Intlit(num)
+                } else {
+                    return Err(UnknownLexeme(tok.to_string()));
+                }
+            }
         })
     }
 }
@@ -145,12 +166,13 @@ pub type Lexeme = Spanned<LexemeType>;
 struct LexBuffer {
     stream: String,
     position: Span,
+    // idx is 1D
     idx: usize,
 }
 
 impl LexBuffer {
     fn new(stream: String) -> Self {
-        Self { stream, position: Span::blank(), idx: 0 }
+        Self { stream, position: Span::default(), idx: 0 }
     }
 
     fn done(&self) -> bool {
@@ -170,37 +192,67 @@ impl LexBuffer {
 
     fn eat(&mut self) -> String {
         let chunk = self.stream.drain(..self.idx).collect();
+        self.position.sline = self.position.eline;
+        self.position.scol = self.position.ecol;
         self.idx = 0;
         chunk
     }
 
-    fn tok(&mut self) -> Lexeme {
+    fn tok(&mut self) -> Result<Lexeme> {
         let chunk = self.eat();
-        let r#type = chunk.into();
+        let r#type = chunk.parse().or_else(|err: UnknownLexeme| {
+            Err(SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), self.position))
+        })?;
 
-        Lexeme {
-            r#type, span
-        }
+        Ok(Lexeme {
+            spanned: r#type, span: self.position
+        })
     }
 }
 
 
-pub fn lex(raw: &String) -> Vec<Lexeme> {
+pub fn lex(raw: &String) -> Result<Vec<Lexeme>> {
     let mut lexemes = Vec::new();
     let mut buffer = LexBuffer::new(raw.clone());
 
     while !buffer.done() {
-        if buffer.over().is_alphabetic() || buffer.over() == '_' {
+        if buffer.over().is_ascii_alphabetic() || buffer.over() == '_' {
             buffer.adv(1);
-            while buffer.over().is_alphanumeric() || buffer.over() == '_' {
+            while buffer.over().is_ascii_alphanumeric() || buffer.over() == '_' {
                 buffer.adv(1);
             }
             
-            lexemes.push(buffer.eat().into());
+            lexemes.push(buffer.tok()?);
             continue;
         }
+
+        if buffer.over().is_ascii_digit() {
+            buffer.adv(1);
+            while buffer.over().is_ascii_digit() {
+                buffer.adv(1);
+            }
+
+            lexemes.push(buffer.tok()?);
+            continue;
+        }
+
+        if buffer.over().is_ascii_whitespace() {
+            // HACK: escaping via `buffer.done()` feels camp, though i *think* it's reasonable?
+            while !buffer.done() && buffer.over().is_ascii_whitespace() {
+                buffer.adv(1);
+                if buffer.eat() == "\n" {
+                    buffer.position.eline += 1;
+                    buffer.position.ecol = 0;
+                }
+            }
+
+            continue;
+        }
+
+        buffer.adv(1);
+        lexemes.push(buffer.tok()?);
     }
 
-    lexemes
+    Ok(lexemes)
 }
 

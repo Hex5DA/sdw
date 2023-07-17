@@ -1,5 +1,5 @@
-use owo_colors::OwoColorize;
 use crate::common::Span;
+use owo_colors::OwoColorize;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, SdwErr>;
@@ -36,28 +36,43 @@ impl SdwErr {
     }
 
     fn body(&self, raw: &str) {
-        println!("{:?}", self.span);
         let lines = raw.split('\n').collect::<Vec<&str>>();
-        if self.span.sline > 1 {
-            eprintln!("[ .. ]")
+        if self.span.sline > 0 {
+            eprintln!("{}", "[ .. ]".bright_green());
         };
-        // idk if this works
-        for line in self.span.sline..=self.span.eline {
+
+        for idx in self.span.sline..self.span.eline {
+            let line = lines.get(idx as usize).unwrap();
+
+            // ew
+            let scol = if idx == self.span.sline {
+                self.span.scol as usize
+            } else {
+                1
+            };
+            let ecol = if idx + 1 == self.span.eline {
+                self.span.ecol as usize
+            } else {
+                line.len() + 1
+            };
+            let notice = if idx + 1 == self.span.eline {
+                " - error occured here"
+            } else {
+                ""
+            };
+
+
+            eprintln!("{}", line);
             eprintln!(
-                "{}",
-                lines
-                    .get(line as usize)
-                    .expect("an error was reported on a line that does not exist.. somehow")
-            );
-            eprintln!(
-                "{}{} {}",
-                repeat_char(' ', self.span.scol as usize - 1),
-                repeat_char('^', (self.span.ecol - self.span.scol + 1) as usize).red(),
-                "- error occured here!".red()
+                "{}{}{}",
+                repeat_char(' ', scol - 1),
+                repeat_char('^', ecol - scol).red(),
+                notice.red()
             );
         }
-        if self.span.sline as usize == lines.len() {
-            eprintln!("[ .. ]")
+
+        if self.span.eline as usize - 1 != lines.len() {
+            eprintln!("{}", "[ .. ]".bright_green());
         };
     }
 
@@ -67,7 +82,10 @@ impl SdwErr {
     }
 
     pub fn from_pos<T: Into<ErrType>>(err: T, span: Span) -> Self {
-        Self { ty: err.into(), span }
+        Self {
+            ty: err.into(),
+            span,
+        }
     }
 }
 
@@ -126,4 +144,3 @@ impl From<LexErrors> for ErrType {
         ErrType::Lex(other)
     }
 }
-

@@ -200,12 +200,13 @@ impl LexBuffer {
 
     fn tok(&mut self) -> Result<Lexeme> {
         let chunk = self.eat();
+        let span = Span { ecol: self.position.ecol + 1, eline: self.position.eline + 1, ..self.position };
         let r#type = chunk.parse().or_else(|err: UnknownLexeme| {
-            Err(SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), self.position))
+            Err(SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span))
         })?;
 
         Ok(Lexeme {
-            spanned: r#type, span: self.position
+            spanned: r#type, span
         })
     }
 }

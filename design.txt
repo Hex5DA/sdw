@@ -493,3 +493,63 @@ fn run(Quit event) {
 }
 ```
 
+
+```sdw
+fn do_some_thing() -> Option<i64> {
+    if err { return None; }
+    Some(10)
+}
+
+fn unwrap<T>(op: Option<T>) -> T {
+    if let Some(i) = op {
+        return i;
+    }
+
+    panic!("none");
+}
+
+fn main() {
+    let op = do_some_thing();
+    unwrap(op);
+}
+```
+
+```sdw
+type Option;
+type SomeType;
+type Some struct { SomeType some };
+type None struct;
+
+fn SomeType unwrap(Option);
+fn SomeType unwrap(Some some) some.some
+#[ no_return ]
+fn SomeType op_unwrap(None _) panic["none"]
+
+fn Option do_some_thing()
+    if err { None {} } else Some { 10 }
+
+fn void main() {
+    let op = do_some_thing();
+    op_unwrap(op);
+}
+```
+
+```sdw
+type Option<int> union { Some<int>, None };
+type Some<int> struct { int some };
+type None<int> struct;
+
+fn int op_unwrap(Some<int> some) some.some
+#[ no_return ]
+fn int op_unwrap(None<int> _) panic["none"]
+
+fn Option<int> do_some_thing()
+    if err { None<int> {} } else Some<int> { 10 }
+
+fn void main() {
+    let op = do_some_thing();   // RUNTIME: Some *or* None
+    op_unwrap(op);              // RUNTIME: op_unwrap() is dispatched to Some or None
+}
+```
+
+

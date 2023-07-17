@@ -24,5 +24,5 @@ fn main() {
         process::exit(1);
     });
 
-    println!("{}", tokens.iter().map(|tk| format!("{:?}", tk.spanned)).collect::<Vec<String>>().join("\n"));
+    println!("{}", tokens.iter().map(|tk| format!("{:?}", tk.spanned)).collect::<Vec<String>>().join(" "));
 }

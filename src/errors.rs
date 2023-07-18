@@ -22,6 +22,7 @@ impl SdwErr {
                 "[SDW E/{}]",
                 match self.ty {
                     ErrType::Lex(_) => "L",
+                    ErrType::Parse(_) => "P",
                 },
             )
             .red()
@@ -71,7 +72,7 @@ impl SdwErr {
             );
         }
 
-        if self.span.eline as usize - 1 != lines.len() {
+        if self.span.eline as usize + 1 != lines.len() {
             eprintln!("{}", "[ .. ]".bright_green());
         };
     }
@@ -117,6 +118,7 @@ OUTPUT:
 #[derive(Debug)]
 pub enum ErrType {
     Lex(LexErrors),
+    Parse(ParseErrors),
 }
 
 impl std::fmt::Display for ErrType {
@@ -125,7 +127,8 @@ impl std::fmt::Display for ErrType {
             f,
             "{}",
             match self {
-                Self::Lex(lexerr) => format!("{}", lexerr),
+                Self::Lex(err) => format!("{}", err),
+                Self::Parse(err) => format!("{}", err),
             }
         )
     }
@@ -142,5 +145,17 @@ pub enum LexErrors {
 impl From<LexErrors> for ErrType {
     fn from(other: LexErrors) -> ErrType {
         ErrType::Lex(other)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ParseErrors {
+    #[error("expected a type")]
+    ExpectedType,
+}
+
+impl From<ParseErrors> for ErrType {
+    fn from(other: ParseErrors) -> ErrType {
+        ErrType::Parse(other)
     }
 }

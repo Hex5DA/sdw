@@ -211,8 +211,16 @@ impl LexBuffer {
     }
 }
 
+macro_rules! err {
+    ($state:expr, $result:expr, $name:ident => $stmt:expr) => {{
+        match $result {
+            Ok($name) => $stmt,
+            Err(err) => $state.errors.push(err),
+        }
+    }};
+}
 
-pub fn lex(raw: &String) -> Result<Vec<Lexeme>> {
+pub fn lex(state: &mut State, raw: &String) -> Vec<Lexeme> {
     let mut lexemes = Vec::new();
     let mut buffer = LexBuffer::new(raw.clone());
 
@@ -223,7 +231,7 @@ pub fn lex(raw: &String) -> Result<Vec<Lexeme>> {
                 buffer.adv(1);
             }
             
-            lexemes.push(buffer.tok()?);
+            err![state, buffer.tok(), ok => lexemes.push(ok)];
             continue;
         }
 
@@ -233,7 +241,8 @@ pub fn lex(raw: &String) -> Result<Vec<Lexeme>> {
                 buffer.adv(1);
             }
 
-            lexemes.push(buffer.tok()?);
+            err![state, buffer.tok(), ok => lexemes.push(ok)];
+            // lexemes.push(buffer.tok()?);
             continue;
         }
 
@@ -251,9 +260,10 @@ pub fn lex(raw: &String) -> Result<Vec<Lexeme>> {
         }
 
         buffer.adv(1);
-        lexemes.push(buffer.tok()?);
+        err![state, buffer.tok(), ok => lexemes.push(ok)];
+        // lexemes.push(buffer.tok()?);
     }
 
-    Ok(lexemes)
+    lexemes
 }
 

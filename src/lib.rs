@@ -1,10 +1,22 @@
 pub mod lexer;
+pub mod parser;
 pub mod errors;
 
 pub mod common {
+
+    pub struct State {
+        pub errors: Vec<crate::errors::SdwErr>,
+    }
+
+    impl State {
+        pub fn new() -> Self {
+            Self { errors: Vec::new() }
+        }
+    }
+
     pub type SpanInt = u64;
 
-    // TODO: inclusive or exclusive??
+    /// (sline, eline] & (scol, ecol]
     #[derive(Debug, Clone, Copy, Default)]
     pub struct Span {
         pub sline: SpanInt,
@@ -44,5 +56,6 @@ pub mod common {
 
 pub mod prelude {
     pub use crate::common::*;
-    pub use crate::errors::{Result, ErrType, LexErrors, SdwErr};
+    pub use crate::lexer::{Lexeme, LexemeType};
+    pub use crate::errors::{Result, ErrType, LexErrors, ParseErrors, SdwErr};
 }

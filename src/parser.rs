@@ -33,17 +33,27 @@ struct Parser<'a> {
     last_span: Span,
 }
 
-impl<'a> Parser<'_> {
+impl<'a> Parser<'a> {
+    fn new(lexemes: Vec<Lexeme>, state: &'a mut State) -> Parser<'a> {
+        Self { lexemes, state, last_span: Span::default() }
+    }
+
     fn done(&self) -> bool {
         self.lexemes.is_empty()
     }
 
-    fn consume_idn(&mut self) -> Result<Spanned<Attempt<String>>> {
+    fn next(&mut self) -> Result<Lexeme> {
         if self.lexemes.is_empty() {
-            return Err(SdwErr::from_pos(ParseErrors::TkStackEmpty(Box<ParseErrors::ExpectedIdn>), self.last_span));
+            return Err(SdwErr::from_pos(ParseErrors::TkStackEmpty(Box::new(ParseErrors::ExpectedIdn)), self.last_span));
         }
 
-        let lexeme = self.lexemes.remove(0);
+        let next = self.lexemes.remove(0);
+        self.last_span = next.span;
+        Ok(next)
+    }
+
+    fn consume_idn(&mut self) -> Result<Spanned<Attempt<String>>> {
+        let lexeme = self.next()?;
         Ok(match lexeme.spanned {
             LexemeType::Idn(idn) => Spanned::new(Success(idn), lexeme.span),
             _ => Spanned::new(Fail, lexeme.span),
@@ -57,7 +67,7 @@ impl<'a> Parser<'_> {
                 span,
             } => Success(STN::new(ST::Idn(idn), span)),
             Spanned {
-                spanned: No,
+                spanned: Fail,
                 span,
             } => {
                 self.state
@@ -68,21 +78,26 @@ impl<'a> Parser<'_> {
         })
     }
 
+    /*
     fn parse_stmt(&mut self) -> Option<STN> {
 
     }
+    */
 }
 
-pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) {
-    let mut parser = Parser { state, lexemes };
+pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<()> {
+    let mut parser = Parser::new(lexemes, state);
     while !parser.done() {
-        // parsing logic
-        let r#type = parser.parse_type();
-        if r#type.is_none() {
+        // TODO: recovery??
+        let r#type = parser.parse_type()?;
+
+            
+        if let Success(r#type) = r#type {
+            println!("ty: {:?}", r#type.spanned);
+        } else {
             continue;
         }
-        println!("ty: {:?}", r#type.unwrap().spanned);
     }
 
-    // HACK: how else can we do this?
+    Ok(())
 }

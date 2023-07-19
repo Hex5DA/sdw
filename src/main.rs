@@ -8,6 +8,10 @@ use std::process;
 struct Args {
     /// filepath to read from
     input: String,
+
+    /// print extra information
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 // TODO: extract to `errors.rs`?
@@ -49,16 +53,32 @@ fn main() {
         print_errs(&state, &contents, "lexing");
     }
 
-    println!(
-        "lexemes:\n{}",
-        lexemes
-            .iter()
-            .map(|tk| format!("{:?}", tk.spanned))
-            .collect::<Vec<String>>()
-            .join(" ")
-    );
+    if args.verbose {
+        println!(
+            "lexemes:\n{}",
+            lexemes
+                .iter()
+                .map(|tk| format!("{:?}", tk.spanned))
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+    }
 
-    sdw::parser::parse(&mut state, lexemes);
+    sdw::parser::parse(&mut state, lexemes).unwrap_or_else(|err| {
+        #[rustfmt::skip]
+        let err_text = format!( // i don't know how better to write this. deal with it. it lines up
+            r"
+              an {} was raised: 
+            ======================================
+            ",
+            "unrecoverable error".red()
+        );
+        eprintln!("\n{}\n\n", err_text);
+
+        err.print(&contents);
+        process::exit(1);
+    });
+
     if !state.errors.is_empty() {
         print_errs(&state, &contents, "parsing");
     }

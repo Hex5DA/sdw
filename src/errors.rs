@@ -152,6 +152,10 @@ impl From<LexErrors> for ErrType {
 pub enum ParseErrors {
     #[error("expected a type")]
     ExpectedType,
+    #[error("reached the end of the token stack; {0}")]
+    TkStackEmpty(Box<ParseErrors>),
+    #[error("expected an identifier")]
+    ExpectedIdn,
 }
 
 impl From<ParseErrors> for ErrType {

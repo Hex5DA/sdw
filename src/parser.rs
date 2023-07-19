@@ -19,9 +19,18 @@ pub enum ST {
     Stmt(Stmt),
 }
 
+enum Attempt<T> {
+    Success(T),
+    Fail,
+}
+
+use Attempt::*;
+type Return = Result<Attempt<STN>>;
+
 struct Parser<'a> {
     lexemes: Vec<Lexeme>,
     state: &'a mut State,
+    last_span: Span,
 }
 
 impl<'a> Parser<'_> {
@@ -29,30 +38,38 @@ impl<'a> Parser<'_> {
         self.lexemes.is_empty()
     }
 
-    fn consume_idn(&mut self) -> Spanned<Option<String>> {
-        let lexeme = self.lexemes.remove(0);
-        match lexeme.spanned {
-            LexemeType::Idn(idn) => Spanned::new(Some(idn), lexeme.span),
-            _ => Spanned::new(None, lexeme.span),
+    fn consume_idn(&mut self) -> Result<Spanned<Attempt<String>>> {
+        if self.lexemes.is_empty() {
+            return Err(SdwErr::from_pos(ParseErrors::TkStackEmpty(Box<ParseErrors::ExpectedIdn>), self.last_span));
         }
+
+        let lexeme = self.lexemes.remove(0);
+        Ok(match lexeme.spanned {
+            LexemeType::Idn(idn) => Spanned::new(Success(idn), lexeme.span),
+            _ => Spanned::new(Fail, lexeme.span),
+        })
     }
 
-    fn parse_type(&mut self) -> Option<STN> {
-        match self.consume_idn() {
+    fn parse_type(&mut self) -> Return {
+        Ok(match self.consume_idn()? {
             Spanned {
-                spanned: Some(idn),
+                spanned: Success(idn),
                 span,
-            } => Some(STN::new(ST::Idn(idn), span)),
+            } => Success(STN::new(ST::Idn(idn), span)),
             Spanned {
-                spanned: None,
+                spanned: No,
                 span,
             } => {
                 self.state
                     .errors
                     .push(SdwErr::from_pos(ParseErrors::ExpectedType, span));
-                None
+                Fail
             }
-        }
+        })
+    }
+
+    fn parse_stmt(&mut self) -> Option<STN> {
+
     }
 }
 

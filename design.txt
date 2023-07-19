@@ -363,7 +363,7 @@ the properties of a module can be accessed using a colon:
 [name]:[member name]
 ```
 
-## formal (ish) syntax
+## grammar
 
 so i don't know how to write the standard formal syntax
 and honestly i'm not using a parser generator so i don't see a point 😅

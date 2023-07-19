@@ -16,7 +16,7 @@ struct Args {
 
 // TODO: extract to `errors.rs`?
 /// "whilst ${process}"
-fn print_errs(state: &sdw::common::State, contents: &String, process: &str) {
+fn print_errs(state: &sdw::common::State, contents: &str, process: &str) {
     let err_text = format!(
         "{} error{}",
         state.errors.len(),
@@ -31,7 +31,7 @@ fn print_errs(state: &sdw::common::State, contents: &String, process: &str) {
 
     for (idx, error) in state.errors.iter().enumerate() {
         eprintln!("\n~= {} #{} =~", "error".red(), idx + 1);
-        error.print(&contents);
+        error.print(contents);
     }
 
     process::exit(1);

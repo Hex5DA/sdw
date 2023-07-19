@@ -201,9 +201,7 @@ impl LexBuffer {
     fn tok(&mut self) -> Result<Lexeme> {
         let chunk = self.eat();
         let span = Span { ecol: self.position.ecol + 1, eline: self.position.eline + 1, ..self.position };
-        let r#type = chunk.parse().or_else(|err: UnknownLexeme| {
-            Err(SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span))
-        })?;
+        let r#type = chunk.parse().map_err(|err: UnknownLexeme| SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span))?;
 
         Ok(Lexeme {
             spanned: r#type, span
@@ -220,9 +218,9 @@ macro_rules! err {
     }};
 }
 
-pub fn lex(state: &mut State, raw: &String) -> Vec<Lexeme> {
+pub fn lex(state: &mut State, raw: &str) -> Vec<Lexeme> {
     let mut lexemes = Vec::new();
-    let mut buffer = LexBuffer::new(raw.clone());
+    let mut buffer = LexBuffer::new(raw.to_owned());
 
     while !buffer.done() {
         if buffer.over().is_ascii_alphabetic() || buffer.over() == '_' {

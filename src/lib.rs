@@ -4,6 +4,7 @@ pub mod errors;
 
 pub mod common {
 
+    #[derive(Default)]
     pub struct State {
         pub errors: Vec<crate::errors::SdwErr>,
     }

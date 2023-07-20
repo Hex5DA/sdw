@@ -40,7 +40,7 @@ pub mod common {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Spanned<T> {
         pub spanned: T,
         pub span: Span,

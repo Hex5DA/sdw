@@ -160,6 +160,8 @@ pub enum ParseErrors {
     FnArgListNotClosed,
     #[error("expected function stubs' parameters' types")]
     ExpectedArgType,
+    #[error("expected function stubs' parameters' identifiers")]
+    ExpectedArgIdn,
     #[error("statements should end with a semicolon (`;`)")]
     StmtsEndWithSemi,
 

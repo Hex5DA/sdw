@@ -37,6 +37,7 @@ pub enum Stmt {
         name: Spanned<Idn>,
         parameters: Vec<Spanned<Type>>,
     },
+    DelMe
 }
 
 pub type STN = Spanned<ST>;
@@ -47,6 +48,8 @@ pub enum ST {
     Stmt(Stmt),
 
     Block(Box<ST>),
+
+    DelMe,
 }
 
 enum Attempt<T> {
@@ -122,16 +125,17 @@ impl<'a> Parser<'a> {
 
     fn expect(&mut self, r#type: LexemeType) -> Return<LexemeType> {
         let lexeme = self.next()?;
-        Ok(match lexeme.spanned {
-            success @ r#type => Success(Spanned::new(success, lexeme.span)),
-            _ => Fail,
+        Ok(if lexeme.spanned == r#type {
+            Success(Spanned::new(lexeme.spanned, lexeme.span))
+        } else {
+            Fail
         })
     }
 
     fn parse_stmt(&mut self) -> Return<Stmt> {
         let next = self.next()?;
 
-        match next.spanned {
+        Ok(match next.spanned {
             LexemeType::Fn => {
                 let start = self.next_span()?;
                 let return_type =
@@ -148,7 +152,7 @@ impl<'a> Parser<'a> {
                 // ^^^^^^^^^^^^^
 
                 // TODO: reach end of token stack whilst parsing?
-                let mut stub;
+                let mut stub = None;
                 for (idx, lexeme) in self.lexemes.iter().enumerate() {
                     // HACK: could this ever produce a false positive?
                     //       (or, add error checking incase it ever should - but how?)
@@ -160,14 +164,19 @@ impl<'a> Parser<'a> {
                             )
                         })?;
 
-                        stub = lexeme_after.spanned == LexemeType::Semi;
+                        stub = Some(lexeme_after.spanned == LexemeType::Semi);
+                        break;
                     }
                 }
 
-                let parameters = Vec::new();
-                if stub {
-                    // parse stub argument list
-                    for lexeme in self.lexemes {
+                if stub.is_none() {
+                    todo!()
+                }
+
+                if stub.unwrap() {
+                    let mut parameters = Vec::new();
+                    // HACK: performance implications??
+                    for lexeme in self.lexemes.clone() {
                         if let LexemeType::RParen = lexeme.spanned {
                             break;
                         }
@@ -183,34 +192,58 @@ impl<'a> Parser<'a> {
                     let end = self.next_span()?;
                     attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
 
-                    STN::new(
-                        ST::Stmt(Stmt::Stub {
+                    Success(Spanned::new(
+                        Stmt::Stub {
                             return_type,
                             name,
                             parameters,
-                        }),
+                        },
                         Span::from_to(start, end),
-                    )
+                    ))
                 } else {
-                    // parse function argument list
-                    let end = self.next_span()?; // TODO: remove
-                    let span = Span::from_to(start, end);
-                    STN::new(
-                        ST::Stmt(Stmt::Fn {
+                    let mut parameters = Vec::new();
+                    // HACK: performance implications??
+                    for lexeme in self.lexemes.clone() {
+                        if let LexemeType::RParen = lexeme.spanned {
+                            break;
+                        }
+
+                        let r#type =
+                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
+                        let pm_name =
+                            attempt!(self, self.consume_idn()?, ParseErrors::ExpectedArgIdn);
+                        parameters.push((r#type, pm_name));
+                        let _ = self.expect(LexemeType::Comma);
+                    }
+
+                    // note: this could still error, if we fell off whilst iterating
+                    attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
+                    attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::FnArgListNotClosed); // TODO: update errors
+                    attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::FnArgListNotClosed);
+                    let end = self.next_span()?;
+                    attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                    let body = Box::new(dummy_parse());
+
+                    Success(Spanned::new(
+                        Stmt::Fn {
                             return_type,
                             name,
-                            parameters: (),
-                            body: (),
-                        }),
-                        span,
-                    )
+                            parameters,
+                            body,
+                        },
+                        Span::from_to(start, end),
+                    ))
                 }
             }
-            _ => todo!(),
-        };
-
-        todo!()
+            // TODO: delete
+            _ => Success(Spanned::new(Stmt::DelMe, Span::default())),
+        })
     }
+}
+
+// TODO: delete
+fn dummy_parse() -> STN {
+    STN::new(ST::DelMe, Span::default())
 }
 
 pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Vec<STN>> {
@@ -220,9 +253,10 @@ pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Vec<STN>> {
     while !parser.done() {
         // TODO: recovery??
         match parser.parse_stmt()? {
-            Success(leaf) => stmts.push(leaf),
+            Success(leaf) => stmts.push(STN::new(ST::Stmt(leaf.spanned), leaf.span)),
             Fail => continue,
         }
     }
+
     Ok(stmts)
 }

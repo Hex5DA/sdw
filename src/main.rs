@@ -24,7 +24,7 @@ fn print_errs(state: &sdw::common::State, contents: &str, process: &str) {
     );
 
     eprintln!(
-        "\nsummary: {} raised whilst {}.\n",
+        "summary: {} raised whilst {}.\n",
         err_text.red(),
         process.bright_green()
     );
@@ -41,7 +41,8 @@ fn main() {
     let args = Args::parse();
     let contents = fs::read_to_string(&args.input).unwrap_or_else(|_| {
         eprintln!(
-            "error: could not read from input file '{}' - does it exist?",
+            "{}: could not read from input file '{}' - does it exist?",
+            "error".red(),
             args.input
         );
         process::exit(1);
@@ -73,8 +74,8 @@ fn main() {
             ",
             "unrecoverable error".red()
         );
-        eprintln!("\n{}\n\n", err_text);
 
+        eprintln!("{}", err_text);
         err.print(&contents);
         process::exit(1);
     });

@@ -7,7 +7,7 @@ lazy_static! {
     static ref IDN_REGEX: Regex = Regex::new(r"[_a-zA-Z][_a-zA-Z0-9]*").unwrap();
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexemeType {
     // arithmetic operators
     /// +

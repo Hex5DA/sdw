@@ -152,10 +152,27 @@ impl From<LexErrors> for ErrType {
 pub enum ParseErrors {
     #[error("expected a type")]
     ExpectedType,
+    #[error("expected a function return type")]
+    MissingFnReturnType,
+    #[error("no function name provided")]
+    MissingFnIdn,
+    #[error("the function argument list was not closed (expected a `)`)")]
+    FnArgListNotClosed,
+    #[error("expected function stubs' parameters' types")]
+    ExpectedArgType,
+    #[error("statements should end with a semicolon (`;`)")]
+    StmtsEndWithSemi,
+
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),
     #[error("expected an identifier")]
-    ExpectedIdn,
+    ExpectedIdn, 
+    #[error("could not determine the next location in the source file")]
+    NoMoreSpans, // TODO: avoidable? better diagnostic?
+    #[error("expected function body or semicolon (`;`)")]
+    NoFnBodyStub,
+    #[error("no function args list provided")]
+    NoFnArgs,
 }
 
 impl From<ParseErrors> for ErrType {

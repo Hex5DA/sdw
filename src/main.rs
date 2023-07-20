@@ -65,7 +65,7 @@ fn main() {
         );
     }
 
-    sdw::parser::parse(&mut state, lexemes).unwrap_or_else(|err| {
+    let st = sdw::parser::parse(&mut state, lexemes).unwrap_or_else(|err| {
         #[rustfmt::skip]
         let err_text = format!( // i don't know how better to write this. deal with it. it lines up
             r"
@@ -82,5 +82,9 @@ fn main() {
 
     if !state.errors.is_empty() {
         print_errs(&state, &contents, "parsing");
+    }
+
+    if args.verbose {
+        println!("{:#?}", st);
     }
 }

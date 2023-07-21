@@ -16,6 +16,7 @@ macro_rules! attempt {
 }
 
 type Idn = String;
+#[allow(dead_code)]
 type GlobIdn = Vec<String>;
 type Type = String;
 
@@ -37,7 +38,7 @@ pub enum Stmt {
         name: Spanned<Idn>,
         parameters: Vec<Spanned<Type>>,
     },
-    DelMe
+    DelMe,
 }
 
 pub type STN = Spanned<ST>;
@@ -155,10 +156,6 @@ impl<'a> Parser<'a> {
                     ParseErrors::NoFnArgs
                 );
 
-                // fn int adder(int arg1, int arg2) [ body ];
-                // fn int adder();
-                // ^^^^^^^^^^^^^
-
                 let mut stub = None;
                 for (idx, lexeme) in self.lexemes.iter().enumerate() {
                     // HACK: could this ever produce a false positive?
@@ -176,70 +173,80 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                if stub.is_none() {
-                    todo!("reach end of token stack whilst parsing");
-                }
+                let stub = stub.ok_or(SdwErr::from_pos(
+                        ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoFnBodyStub)),
+                        self.last_span,
+                ))?;
 
-                println!("");
-                if stub.unwrap() {
-                    let mut parameters = Vec::new();
-                    loop {
-                        if let LexemeType::RParen = self.peek()?.spanned {
-                            break;
-                        }
+                let mut stub_parameters = Vec::new();
+                let mut body_parameters = Vec::new();
 
-                        let r#type =
-                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
-                        parameters.push(r#type);
-                        let _ = self.expect(LexemeType::Comma);
+                loop {
+                    if let LexemeType::RParen = self.peek()?.spanned {
+                        break;
                     }
 
-                    // note: this could still error, if we fell off whilst iterating
-                    attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
-                    let end = self.next_span()?;
-                    attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                    let r#type = attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
+                    if stub {
+                        stub_parameters.push(r#type);
+                    } else {
+                        let pm_name =
+                            attempt!(self, self.consume_idn()?, ParseErrors::ExpectedArgIdn);
+                        body_parameters.push((r#type, pm_name));
+                    }
+                    let _ = self.expect(LexemeType::Comma);
+                }
 
-                    Success(Spanned::new(
+                // note: this could still error, if we fell off whilst iterating
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RParen)?,
+                    ParseErrors::FnArgListNotClosed
+                );
+
+                let mut body = None;
+                if !stub {
+                    attempt!(
+                        self,
+                        self.expect(LexemeType::LBrace)?,
+                        ParseErrors::FnRequiresBody
+                    );
+                    body = Some(Box::new(dummy_parse()));
+                    attempt!(
+                        self,
+                        self.expect(LexemeType::RBrace)?,
+                        ParseErrors::FnBodyNotClosed
+                    );
+                }
+
+                let end = self.next_span()?;
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
+                let span = Span::from_to(start, end);
+
+                Success(if stub {
+                    Spanned::new(
                         Stmt::Stub {
                             return_type,
                             name,
-                            parameters,
+                            parameters: stub_parameters,
                         },
-                        Span::from_to(start, end),
-                    ))
+                        span,
+                    )
                 } else {
-                    let mut parameters = Vec::new();
-                    loop {
-                        if let LexemeType::RParen = self.peek()?.spanned {
-                            break;
-                        }
-
-                        let r#type =
-                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
-                        let pm_name =
-                            attempt!(self, self.consume_idn()?, ParseErrors::ExpectedArgIdn);
-                        parameters.push((r#type, pm_name));
-                        let _ = self.expect(LexemeType::Comma);
-                    }
-
-                    // note: this could still error, if we fell off whilst iterating
-                    attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
-                    attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::FnRequiresBody);
-                    attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::FnBodyNotClosed);
-                    let end = self.next_span()?;
-                    attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
-                    let body = Box::new(dummy_parse());
-
-                    Success(Spanned::new(
+                    Spanned::new(
                         Stmt::Fn {
                             return_type,
                             name,
-                            parameters,
-                            body,
+                            parameters: body_parameters,
+                            body: body.unwrap(),
                         },
-                        Span::from_to(start, end),
-                    ))
-                }
+                        span,
+                    )
+                })
             }
             // TODO: delete
             _ => Success(Spanned::new(Stmt::DelMe, Span::default())),

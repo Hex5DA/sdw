@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-// TODO: see `Parser::parse` 
+// TODO: see `Parser::parse`
 fn dummy_parse() -> STN {
     STN::new(ST::DelMe, Span::default())
 }

@@ -62,7 +62,6 @@ impl SdwErr {
                 ""
             };
 
-
             eprintln!("{}", line);
             eprintln!(
                 "{}{}{}",
@@ -172,7 +171,7 @@ pub enum ParseErrors {
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),
     #[error("expected an identifier")]
-    ExpectedIdn, 
+    ExpectedIdn,
     #[error("could not determine the next location in the source file")]
     NoMoreSpans, // TODO: avoidable? better diagnostic?
     #[error("expected function body or semicolon (`;`)")]

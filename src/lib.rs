@@ -1,6 +1,6 @@
+pub mod errors;
 pub mod lexer;
 pub mod parser;
-pub mod errors;
 
 pub mod common {
 
@@ -48,15 +48,13 @@ pub mod common {
 
     impl<T> Spanned<T> {
         pub fn new(spanned: T, span: Span) -> Spanned<T> {
-            Self {
-                spanned, span
-            }
+            Self { spanned, span }
         }
     }
 }
 
 pub mod prelude {
     pub use crate::common::*;
+    pub use crate::errors::{ErrType, LexErrors, ParseErrors, Result, SdwErr};
     pub use crate::lexer::{Lexeme, LexemeType};
-    pub use crate::errors::{Result, ErrType, LexErrors, ParseErrors, SdwErr};
 }

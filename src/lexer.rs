@@ -1,7 +1,7 @@
-use lazy_static::lazy_static;
-use std::str::FromStr;
 use crate::prelude::*;
+use lazy_static::lazy_static;
 use regex::Regex;
+use std::str::FromStr;
 
 lazy_static! {
     static ref IDN_REGEX: Regex = Regex::new(r"[_a-zA-Z][_a-zA-Z0-9]*").unwrap();
@@ -172,7 +172,11 @@ struct LexBuffer {
 
 impl LexBuffer {
     fn new(stream: String) -> Self {
-        Self { stream, position: Span::default(), idx: 0 }
+        Self {
+            stream,
+            position: Span::default(),
+            idx: 0,
+        }
     }
 
     fn done(&self) -> bool {
@@ -181,7 +185,12 @@ impl LexBuffer {
 
     fn over(&self) -> char {
         self.stream.chars().nth(self.idx).unwrap_or_else(|| {
-            panic!("lexer: position OOB ({}/{})\nremaining content:{}", self.idx, self.stream.len(), self.stream);
+            panic!(
+                "lexer: position OOB ({}/{})\nremaining content:{}",
+                self.idx,
+                self.stream.len(),
+                self.stream
+            );
         })
     }
 
@@ -200,11 +209,18 @@ impl LexBuffer {
 
     fn tok(&mut self) -> Result<Lexeme> {
         let chunk = self.eat();
-        let span = Span { ecol: self.position.ecol + 1, eline: self.position.eline + 1, ..self.position };
-        let r#type = chunk.parse().map_err(|err: UnknownLexeme| SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span))?;
+        let span = Span {
+            ecol: self.position.ecol + 1,
+            eline: self.position.eline + 1,
+            ..self.position
+        };
+        let r#type = chunk.parse().map_err(|err: UnknownLexeme| {
+            SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span)
+        })?;
 
         Ok(Lexeme {
-            spanned: r#type, span
+            spanned: r#type,
+            span,
         })
     }
 }
@@ -228,7 +244,7 @@ pub fn lex(state: &mut State, raw: &str) -> Vec<Lexeme> {
             while buffer.over().is_ascii_alphanumeric() || buffer.over() == '_' {
                 buffer.adv(1);
             }
-            
+
             err![state, buffer.tok(), ok => lexemes.push(ok)];
             continue;
         }
@@ -264,4 +280,3 @@ pub fn lex(state: &mut State, raw: &str) -> Vec<Lexeme> {
 
     lexemes
 }
-

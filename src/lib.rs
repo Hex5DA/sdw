@@ -3,6 +3,7 @@ pub mod lexer;
 pub mod parser;
 
 pub mod common {
+    use derivative::Derivative;
 
     #[derive(Default)]
     pub struct State {
@@ -40,9 +41,11 @@ pub mod common {
         }
     }
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Derivative, Clone, Copy)]
+    #[derivative(Debug)]
     pub struct Spanned<T> {
         pub spanned: T,
+        #[derivative(Debug = "ignore")]
         pub span: Span,
     }
 

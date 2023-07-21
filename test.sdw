@@ -1,1 +1,1 @@
-fn int adder() {};
+fn int adder(int arg1, int arg2) {};

@@ -81,6 +81,7 @@ impl<'a> Parser<'a> {
         self.lexemes.is_empty()
     }
 
+    // not for external usage!
     fn _tk_empty(&self) -> Result<()> {
         if self.lexemes.is_empty() {
             Err(SdwErr::from_pos(
@@ -92,6 +93,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// always consumes
     fn next(&mut self) -> Result<Lexeme> {
         self._tk_empty()?;
 
@@ -100,9 +102,21 @@ impl<'a> Parser<'a> {
         Ok(next)
     }
 
+    /// never consumes
     fn peek(&self) -> Result<Lexeme> {
         self._tk_empty()?;
         Ok(self.lexemes[0].clone())
+    }
+
+    /// only consumes if `r#type` matches
+    fn expect(&mut self, r#type: LexemeType) -> Return<LexemeType> {
+        let lexeme = self.peek()?;
+        Ok(if lexeme.spanned == r#type {
+            self.next().unwrap();
+            Success(Spanned::new(lexeme.spanned, lexeme.span))
+        } else {
+            Fail
+        })
     }
 
     fn next_span(&self) -> Result<Span> {
@@ -119,6 +133,22 @@ impl<'a> Parser<'a> {
         })
     }
 
+    // TODO: fix this (lol)
+    //       should probably be a method of `Parser` (for recursion)
+    //       but eh. also, tf should the return type be??
+    fn parse(&mut self) -> Result<Vec<STN>> {
+        let mut stmts = Vec::new();
+        while !self.done() {
+            // TODO: recovery??
+            match self.parse_stmt()? {
+                Success(leaf) => stmts.push(STN::new(ST::Stmt(leaf.spanned), leaf.span)),
+                Fail => continue,
+            }
+        }
+
+        Ok(stmts)
+    }
+
     fn parse_type(&mut self) -> Return<Type> {
         Ok(match self.consume_idn()? {
             Fail => {
@@ -131,21 +161,13 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn expect(&mut self, r#type: LexemeType) -> Return<LexemeType> {
-        let lexeme = self.peek()?;
-        Ok(if lexeme.spanned == r#type {
-            self.next().unwrap();
-            Success(Spanned::new(lexeme.spanned, lexeme.span))
-        } else {
-            Fail
-        })
-    }
-
     fn parse_stmt(&mut self) -> Return<Stmt> {
         let next = self.next()?;
 
         Ok(match next.spanned {
             LexemeType::Fn => {
+                // fn int addTwo(int arg1, int arg2) { [body] };
+                // ^^ ^^^ ^^^^^^^
                 let start = self.next_span()?;
                 let return_type =
                     attempt!(self, self.parse_type()?, ParseErrors::MissingFnReturnType);
@@ -156,6 +178,8 @@ impl<'a> Parser<'a> {
                     ParseErrors::NoFnArgs
                 );
 
+                // test if we are parsing a stub or bodied function
+                // (we find the first `)`, and check if the following lexeme is a `;`)
                 let mut stub = None;
                 for (idx, lexeme) in self.lexemes.iter().enumerate() {
                     // HACK: could this ever produce a false positive?
@@ -174,13 +198,15 @@ impl<'a> Parser<'a> {
                 }
 
                 let stub = stub.ok_or(SdwErr::from_pos(
-                        ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoFnBodyStub)),
-                        self.last_span,
+                    ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoFnBodyStub)),
+                    self.last_span,
                 ))?;
 
                 let mut stub_parameters = Vec::new();
                 let mut body_parameters = Vec::new();
 
+                // fn int addTwo(int arg1, int arg2) { [body] };
+                //               ^^^ ^^^^
                 loop {
                     if let LexemeType::RParen = self.peek()?.spanned {
                         break;
@@ -194,9 +220,15 @@ impl<'a> Parser<'a> {
                             attempt!(self, self.consume_idn()?, ParseErrors::ExpectedArgIdn);
                         body_parameters.push((r#type, pm_name));
                     }
+                    // fn int addTwo(int arg1, int arg2) { [body] };
+                    //                       ^
+                    // we break by checking for `RParen`, not `Comma`,
+                    // so we don't care about the result
                     let _ = self.expect(LexemeType::Comma);
                 }
 
+                // fn int addTwo(int arg1, int arg2) { [body] };
+                //                                 ^
                 // note: this could still error, if we fell off whilst iterating
                 attempt!(
                     self,
@@ -204,6 +236,8 @@ impl<'a> Parser<'a> {
                     ParseErrors::FnArgListNotClosed
                 );
 
+                // fn int addTwo(int arg1, int arg2) { [body] };
+                //                                   ^ [^^^^] ^
                 let mut body = None;
                 if !stub {
                     attempt!(
@@ -219,6 +253,8 @@ impl<'a> Parser<'a> {
                     );
                 }
 
+                // fn int addTwo(int arg1, int arg2) { [body] };
+                //                                             ^
                 let end = self.next_span()?;
                 attempt!(
                     self,
@@ -242,6 +278,7 @@ impl<'a> Parser<'a> {
                             return_type,
                             name,
                             parameters: body_parameters,
+                            // (safe - this branch only executes when body is `Some`
                             body: body.unwrap(),
                         },
                         span,
@@ -254,22 +291,12 @@ impl<'a> Parser<'a> {
     }
 }
 
-// TODO: delete
+// TODO: see `Parser::parse` 
 fn dummy_parse() -> STN {
     STN::new(ST::DelMe, Span::default())
 }
 
 pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Vec<STN>> {
     let mut parser = Parser::new(lexemes, state);
-    let mut stmts = Vec::new();
-
-    while !parser.done() {
-        // TODO: recovery??
-        match parser.parse_stmt()? {
-            Success(leaf) => stmts.push(STN::new(ST::Stmt(leaf.spanned), leaf.span)),
-            Fail => continue,
-        }
-    }
-
-    Ok(stmts)
+    parser.parse()
 }

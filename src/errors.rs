@@ -160,10 +160,14 @@ pub enum ParseErrors {
     FnArgListNotClosed,
     #[error("expected function stubs' parameters' types")]
     ExpectedArgType,
-    #[error("expected function stubs' parameters' identifiers")]
+    #[error("expected function parameters' identifiers")]
     ExpectedArgIdn,
     #[error("statements should end with a semicolon (`;`)")]
     StmtsEndWithSemi,
+    #[error("this function is not a stub - thus needs a body")]
+    FnRequiresBody,
+    #[error("function body was not closed")]
+    FnBodyNotClosed,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

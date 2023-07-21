@@ -52,6 +52,7 @@ pub enum ST {
     DelMe,
 }
 
+#[derive(Debug)]
 enum Attempt<T> {
     Success(T),
     Fail,
@@ -79,27 +80,33 @@ impl<'a> Parser<'a> {
         self.lexemes.is_empty()
     }
 
-    fn next(&mut self) -> Result<Lexeme> {
+    fn _tk_empty(&self) -> Result<()> {
         if self.lexemes.is_empty() {
-            return Err(SdwErr::from_pos(
+            Err(SdwErr::from_pos(
                 ParseErrors::TkStackEmpty(Box::new(ParseErrors::ExpectedIdn)),
                 self.last_span,
-            ));
+            ))
+        } else {
+            Ok(())
         }
+    }
+
+    fn next(&mut self) -> Result<Lexeme> {
+        self._tk_empty()?;
 
         let next = self.lexemes.remove(0);
         self.last_span = next.span;
         Ok(next)
     }
 
-    fn next_span(&self) -> Result<Span> {
-        if self.lexemes.is_empty() {
-            return Err(SdwErr::from_pos(
-                ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoMoreSpans)),
-                self.last_span,
-            ));
-        }
+    fn peek(&self) -> Result<Lexeme> {
+        self._tk_empty()?;
+        Ok(self.lexemes[0].clone())
+    }
 
+    fn next_span(&self) -> Result<Span> {
+        self._tk_empty()?;
+        // we don't call `self.peek()` to avoid a clone
         Ok(self.lexemes[0].span)
     }
 
@@ -124,8 +131,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expect(&mut self, r#type: LexemeType) -> Return<LexemeType> {
-        let lexeme = self.next()?;
+        let lexeme = self.peek()?;
         Ok(if lexeme.spanned == r#type {
+            self.next().unwrap();
             Success(Spanned::new(lexeme.spanned, lexeme.span))
         } else {
             Fail
@@ -151,7 +159,6 @@ impl<'a> Parser<'a> {
                 // fn int adder();
                 // ^^^^^^^^^^^^^
 
-                // TODO: reach end of token stack whilst parsing?
                 let mut stub = None;
                 for (idx, lexeme) in self.lexemes.iter().enumerate() {
                     // HACK: could this ever produce a false positive?
@@ -170,14 +177,14 @@ impl<'a> Parser<'a> {
                 }
 
                 if stub.is_none() {
-                    todo!()
+                    todo!("reach end of token stack whilst parsing");
                 }
 
+                println!("");
                 if stub.unwrap() {
                     let mut parameters = Vec::new();
-                    // HACK: performance implications??
-                    for lexeme in self.lexemes.clone() {
-                        if let LexemeType::RParen = lexeme.spanned {
+                    loop {
+                        if let LexemeType::RParen = self.peek()?.spanned {
                             break;
                         }
 
@@ -202,9 +209,8 @@ impl<'a> Parser<'a> {
                     ))
                 } else {
                     let mut parameters = Vec::new();
-                    // HACK: performance implications??
-                    for lexeme in self.lexemes.clone() {
-                        if let LexemeType::RParen = lexeme.spanned {
+                    loop {
+                        if let LexemeType::RParen = self.peek()?.spanned {
                             break;
                         }
 
@@ -218,8 +224,8 @@ impl<'a> Parser<'a> {
 
                     // note: this could still error, if we fell off whilst iterating
                     attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
-                    attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::FnArgListNotClosed); // TODO: update errors
-                    attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::FnArgListNotClosed);
+                    attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::FnRequiresBody);
+                    attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::FnBodyNotClosed);
                     let end = self.next_span()?;
                     attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
                     let body = Box::new(dummy_parse());

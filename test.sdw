@@ -1,1 +1,3 @@
-fn int adder(int arg1, int arg2) {};
+fn int adder(int arg1, int arg2) {
+    fn int stub();
+};

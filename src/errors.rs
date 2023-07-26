@@ -167,6 +167,8 @@ pub enum ParseErrors {
     FnRequiresBody,
     #[error("function body was not closed")]
     FnBodyNotClosed,
+    #[error("function stub arguments did not have a comma delimeter. help: have you given an argument a name?")]
+    StubNoArgDel,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

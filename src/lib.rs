@@ -4,6 +4,7 @@ pub mod parser;
 
 pub mod common {
     use derivative::Derivative;
+    use owo_colors::OwoColorize;
 
     #[derive(Default)]
     pub struct State {
@@ -13,6 +14,26 @@ pub mod common {
     impl State {
         pub fn new() -> Self {
             Self { errors: Vec::new() }
+        }
+
+        /// expects caller to error out.
+        pub fn print_errs(&self, contents: &str, process: &str) {
+            let err_text = format!(
+                "{} error{}",
+                self.errors.len(),
+                if self.errors.len() == 1 { "" } else { "s" }
+            );
+
+            eprintln!(
+                "summary: {} raised whilst {}.\n",
+                err_text.red(),
+                process.bright_green()
+            );
+
+            for (idx, error) in self.errors.iter().enumerate() {
+                eprintln!("\n~= {} #{} =~", "error".red(), idx + 1);
+                error.print(contents);
+            }
         }
     }
 
@@ -30,7 +51,7 @@ pub mod common {
     impl Span {
         pub fn from_to(from: Span, to: Span) -> Span {
             assert!(from.sline <= to.eline);
-            assert!(from.scol <= to.ecol);
+            assert!(from.scol <= to.ecol || to.eline > from.sline);
 
             Span {
                 sline: from.sline,
@@ -60,4 +81,5 @@ pub mod prelude {
     pub use crate::common::*;
     pub use crate::errors::{ErrType, LexErrors, ParseErrors, Result, SdwErr};
     pub use crate::lexer::{Lexeme, LexemeType};
+    pub use crate::parser::prelude::*;
 }

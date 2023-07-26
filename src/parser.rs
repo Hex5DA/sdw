@@ -15,6 +15,10 @@ macro_rules! attempt {
     }};
 }
 
+pub mod prelude {
+    pub use super::*;
+}
+
 type Idn = String;
 #[allow(dead_code)]
 type GlobIdn = Vec<String>;
@@ -31,17 +35,17 @@ pub enum Stmt {
         return_type: Spanned<Type>,
         name: Spanned<Idn>,
         parameters: Vec<(Spanned<Type>, Spanned<Idn>)>,
-        body: Box<STN>,
+        body: Box<Block>,
     },
     Stub {
         return_type: Spanned<Type>,
         name: Spanned<Idn>,
         parameters: Vec<Spanned<Type>>,
     },
-    DelMe,
 }
 
 pub type STN = Spanned<ST>;
+pub type Block = Vec<STN>;
 #[derive(Debug)]
 pub enum ST {
     Expr(Expr),
@@ -49,8 +53,6 @@ pub enum ST {
     Stmt(Stmt),
 
     Block(Box<ST>),
-
-    DelMe,
 }
 
 #[derive(Debug)]
@@ -133,13 +135,20 @@ impl<'a> Parser<'a> {
         })
     }
 
-    // TODO: fix this (lol)
-    //       should probably be a method of `Parser` (for recursion)
-    //       but eh. also, tf should the return type be??
-    fn parse(&mut self) -> Result<Vec<STN>> {
+    fn parse(&mut self) -> Result<Block> {
         let mut stmts = Vec::new();
         while !self.done() {
-            // TODO: recovery??
+            // escaping this way feels camp, but i think it's reasonable
+            // * as it stands * `{}` aren't overloaded beyond block scope delimters, so
+            // this is a reasonable assumption??
+            if let Spanned {
+                spanned: LexemeType::RBrace,
+                ..
+            } = self.peek()?
+            {
+                break;
+            }
+
             match self.parse_stmt()? {
                 Success(leaf) => stmts.push(STN::new(ST::Stmt(leaf.spanned), leaf.span)),
                 Fail => continue,
@@ -206,25 +215,39 @@ impl<'a> Parser<'a> {
                 let mut body_parameters = Vec::new();
 
                 // fn int addTwo(int arg1, int arg2) { [body] };
-                //               ^^^ ^^^^
-                loop {
-                    if let LexemeType::RParen = self.peek()?.spanned {
-                        break;
-                    }
+                //               ^^^ ^^^^  ^^^ ^^^^
 
-                    let r#type = attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
-                    if stub {
+                // TODO: properly comment this shit lol
+                //       (good luck figuring this out, too!)
+                //       (no i'm not doing it now whilst i still understand it)
+                //       (suffer, future will)
+                if stub {
+                    loop {
+                        let r#type =
+                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
                         stub_parameters.push(r#type);
-                    } else {
+
+                        if let Fail = self.expect(LexemeType::Comma)? {
+                            if let LexemeType::RParen = self.peek()?.spanned {
+                                break;
+                            }
+                            attempt!(self, Fail, ParseErrors::StubNoArgDel);
+                        }
+                    }
+                } else {
+                    loop {
+                        if let LexemeType::RParen = self.peek()?.spanned {
+                            break;
+                        }
+                        let r#type =
+                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
                         let pm_name =
                             attempt!(self, self.consume_idn()?, ParseErrors::ExpectedArgIdn);
                         body_parameters.push((r#type, pm_name));
+                        // we break by checking for `RParen`, not `Comma`,
+                        // so we don't care about the result
+                        let _ = self.expect(LexemeType::Comma);
                     }
-                    // fn int addTwo(int arg1, int arg2) { [body] };
-                    //                       ^
-                    // we break by checking for `RParen`, not `Comma`,
-                    // so we don't care about the result
-                    let _ = self.expect(LexemeType::Comma);
                 }
 
                 // fn int addTwo(int arg1, int arg2) { [body] };
@@ -245,7 +268,7 @@ impl<'a> Parser<'a> {
                         self.expect(LexemeType::LBrace)?,
                         ParseErrors::FnRequiresBody
                     );
-                    body = Some(Box::new(dummy_parse()));
+                    body = Some(Box::new(self.parse()?));
                     attempt!(
                         self,
                         self.expect(LexemeType::RBrace)?,
@@ -278,7 +301,7 @@ impl<'a> Parser<'a> {
                             return_type,
                             name,
                             parameters: body_parameters,
-                            // (safe - this branch only executes when body is `Some`
+                            // (safe - this branch only executes when body is `Some`)
                             body: body.unwrap(),
                         },
                         span,
@@ -286,14 +309,9 @@ impl<'a> Parser<'a> {
                 })
             }
             // TODO: delete
-            _ => Success(Spanned::new(Stmt::DelMe, Span::default())),
+            unknown => todo!("unknown: {:?}", unknown),
         })
     }
-}
-
-// TODO: see `Parser::parse`
-fn dummy_parse() -> STN {
-    STN::new(ST::DelMe, Span::default())
 }
 
 pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Vec<STN>> {

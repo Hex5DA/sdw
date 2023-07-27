@@ -42,6 +42,19 @@ pub enum Stmt {
         name: Spanned<Idn>,
         parameters: Vec<Spanned<Type>>,
     },
+    Loop {
+        block: Box<Block>,
+    },
+    Label {
+        name: Spanned<String>
+    },
+    Goto {
+        name: Spanned<String>,
+    },
+    Return {
+        // TODO: `STN` or `Expr`?
+        expr: Option<Box<STN>>,
+    }
 }
 
 pub type STN = Spanned<ST>;
@@ -51,8 +64,6 @@ pub enum ST {
     Expr(Expr),
     Bound(Bound),
     Stmt(Stmt),
-
-    Block(Box<ST>),
 }
 
 #[derive(Debug)]
@@ -223,6 +234,10 @@ impl<'a> Parser<'a> {
                 //       (suffer, future will)
                 if stub {
                     loop {
+                        if let LexemeType::RParen = self.peek()?.spanned {
+                            break;
+                        }
+
                         let r#type =
                             attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
                         stub_parameters.push(r#type);
@@ -266,13 +281,13 @@ impl<'a> Parser<'a> {
                     attempt!(
                         self,
                         self.expect(LexemeType::LBrace)?,
-                        ParseErrors::FnRequiresBody
+                        ParseErrors::BlockNotOpened
                     );
                     body = Some(Box::new(self.parse()?));
                     attempt!(
                         self,
                         self.expect(LexemeType::RBrace)?,
-                        ParseErrors::FnBodyNotClosed
+                        ParseErrors::BlockNotClosed
                     );
                 }
 
@@ -307,10 +322,64 @@ impl<'a> Parser<'a> {
                         span,
                     )
                 })
+            },
+            LexemeType::Mc => unimplemented!("macros are implemented, and won't be for a while"),
+            LexemeType::Loop => {
+                let start = self.next_span()?;
+                attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::BlockNotOpened);
+                let block = Box::new(self.parse()?);
+                attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::BlockNotClosed);
+                let end = self.next_span()?;
+                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                let span = Span::from_to(start, end);
+                Success(Spanned::new(Stmt::Loop { block }, span))
+            },
+            LexemeType::At => {
+                let start = self.next_span()?;
+                let name = attempt!(self, self.consume_idn()?, ParseErrors::LabelName);
+                let end = self.next_span()?;
+                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                let span = Span::from_to(start, end);
+                Success(Spanned::new(Stmt::Label { name }, span))
+            },
+            LexemeType::Goto => {
+                let start = self.next_span()?;
+                attempt!(self, self.expect(LexemeType::At)?, ParseErrors::LabelNamePrefixedAt);
+                let name = attempt!(self, self.consume_idn()?, ParseErrors::GotoNeedLabel);
+                let end = self.next_span()?;
+                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                let span = Span::from_to(start, end);
+                Success(Spanned::new(Stmt::Goto { name }, span))
+            },
+            LexemeType::Return => {
+                let start = self.next_span()?;
+                let expr = if let LexemeType::Semi = self.peek()?.spanned {
+                    None
+                } else {
+                    let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoReturnExpr);
+                    let stn = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
+                    Some(stn)
+                };
+
+                let end = self.next_span()?;
+                let span = Span::from_to(start, end);
+                Success(Spanned::new(Stmt::Return { expr }, span))
             }
-            // TODO: delete
-            unknown => todo!("unknown: {:?}", unknown),
+            // TODO:
+            // - type dec 
+            // - variable dec 
+            // TODO: verify correct behaviour.
+            _ => Fail,
         })
+    }
+
+    #[allow(dead_code)]
+    fn parse_expr(&mut self) -> Return<Expr> {
+        todo!()
+    }
+    #[allow(dead_code)]
+    fn parse_bound(&mut self) -> Return<Bound> {
+        todo!()
     }
 }
 

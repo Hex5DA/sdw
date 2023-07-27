@@ -1,3 +1,7 @@
 fn int adder(int arg1, int arg2) {
-    fn int stub();
+    loop {
+        fn int main();
+        goto @break;
+    };
+    @break;
 };

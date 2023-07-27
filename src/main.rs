@@ -3,6 +3,7 @@ use owo_colors::OwoColorize;
 use sdw::lexer;
 use std::fs;
 use std::process;
+use std::time::Instant;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -15,12 +16,15 @@ struct Args {
 }
 
 mod print {
+    use std::time::Instant;
+
+    use owo_colors::OwoColorize;
     use sdw::prelude::*;
 
     macro_rules! print_idn {
         ($ident:expr, $($arg:tt)+) => {{
             let whitespace = std::iter::repeat(' ').take($ident * 2).collect::<String>();
-            println!("{} {}", whitespace, format_args!($($arg)+));
+            println!("{}{}", whitespace, format_args!($($arg)+));
         }};
     }
 
@@ -39,15 +43,25 @@ mod print {
                     print_idn!(ident + 1, "parameters:");
 
                     for (r#type, name) in parameters {
-                        print_idn!(ident + 2, "type, name -> {}, {}", r#type.spanned, name.spanned);
+                        print_idn!(
+                            ident + 2,
+                            "type, name -> {}, {}",
+                            r#type.spanned,
+                            name.spanned
+                        );
                     }
                     if parameters.is_empty() {
                         print_idn!(ident + 2, "[ none ]");
                     }
 
-                    st(body, ident + 1);
-                },
-                Stmt::Stub { return_type, name, parameters } => {
+                    print_idn!(ident + 1, "body:");
+                    st(body, ident + 2);
+                }
+                Stmt::Stub {
+                    return_type,
+                    name,
+                    parameters,
+                } => {
                     print_idn!(ident, "function stub:");
                     print_idn!(ident + 1, "name -> {}", name.spanned);
                     print_idn!(ident + 1, "return type -> {}", return_type.spanned);
@@ -60,6 +74,26 @@ mod print {
                         print_idn!(ident + 2, "[ none ]");
                     }
                 }
+                Stmt::Loop { block } => {
+                    print_idn!(ident, "loop:");
+                    st(block, ident + 1);
+                },
+                Stmt::Label { name } => {
+                    print_idn!(ident, "label:");
+                    print_idn!(ident + 1, "name -> {}", name.spanned);
+                },
+                Stmt::Goto { name } => {
+                    print_idn!(ident, "goto:");
+                    print_idn!(ident + 1, "target -> {}", name.spanned);
+                },
+                Stmt::Return { expr } => {
+                    print_idn!(ident, "return:");
+                    if let Some(expr) = expr{
+                        stn(&expr, ident + 1);
+                    } else {
+                        print_idn!(ident + 1, "[ no return expression ]");
+                    }
+                },
             },
             _ => unimplemented!(),
         }
@@ -87,6 +121,14 @@ mod print {
                 .join(" ")
         );
     }
+
+    pub fn done(before: &Instant) {
+        println!(
+            "{}, in {} μs",
+            "done".to_owned().bright_green(),
+            before.elapsed().as_micros().bright_green(),
+        );
+    }
 }
 
 fn main() {
@@ -101,16 +143,30 @@ fn main() {
     });
 
     let mut state = sdw::common::State::new();
+
+    let before = Instant::now();
+    println!("{}..", "lexing file".bright_green());
     let lexemes = lexer::lex(&mut state, &contents);
+
     if !state.errors.is_empty() {
         state.print_errs(&contents, "lexing");
         process::exit(1);
     }
 
+    print::done(&before);
+    println!(
+        "produced {} lexemes",
+        lexemes.len().bright_green()
+    );
+
+    println!();
     if args.verbose {
         print::lexemes(&lexemes);
+        println!();
     }
 
+    let before = Instant::now();
+    println!("{}..", "parsing file".bright_green());
     let st = sdw::parser::parse(&mut state, lexemes).unwrap_or_else(|err| {
         #[rustfmt::skip]
         let err_text = format!( // i don't know how better to write this. deal with it. it lines up
@@ -126,12 +182,15 @@ fn main() {
         process::exit(1);
     });
 
+    print::done(&before);
     if !state.errors.is_empty() {
         state.print_errs(&contents, "parsing");
         process::exit(1);
     }
 
+    println!();
     if args.verbose {
         print::syntax_tree(&st);
+        println!();
     }
 }

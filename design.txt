@@ -89,8 +89,6 @@ statements must be followed by a semicolon (;)
 
 function declarations:
 
-[TODO: re-reevaluate the feasiility of continuations in some form]
-
 ```sdw
 fn [return_type] [name]([[type] [name]]?*) [expr];
 ```

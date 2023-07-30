@@ -202,21 +202,31 @@ impl LexBuffer {
     fn eat(&mut self) -> String {
         let chunk = self.stream.drain(..self.idx).collect();
         self.position.sline = self.position.eline;
-        self.position.scol = self.position.ecol;
+        // TODO:
+        // HACK:
+        //      this is necessary, but why? why not for `[s/e]line`?
+        //      something is severly fucky wucky and it'll be hell to debug lol
+        self.position.scol = self.position.ecol + 1;
         self.idx = 0;
         chunk
     }
 
     fn tok(&mut self) -> Result<Lexeme> {
-        let chunk = self.eat();
         let span = Span {
             ecol: self.position.ecol + 1,
             eline: self.position.eline + 1,
             ..self.position
         };
+        println!("[ DEBUG ] BPOS {:?}", self.position);
+        let chunk = self.eat();
         let r#type = chunk.parse().map_err(|err: UnknownLexeme| {
             SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span)
         })?;
+
+        if r#type == LexemeType::Goto {
+            println!("[ DEBUG ] APOS {:?}", self.position);
+            println!("[ DEBUG ] SPAN {:?}", span);
+        }
 
         Ok(Lexeme {
             spanned: r#type,
@@ -256,7 +266,6 @@ pub fn lex(state: &mut State, raw: &str) -> Vec<Lexeme> {
             }
 
             err![state, buffer.tok(), ok => lexemes.push(ok)];
-            // lexemes.push(buffer.tok()?);
             continue;
         }
 
@@ -275,7 +284,6 @@ pub fn lex(state: &mut State, raw: &str) -> Vec<Lexeme> {
 
         buffer.adv(1);
         err![state, buffer.tok(), ok => lexemes.push(ok)];
-        // lexemes.push(buffer.tok()?);
     }
 
     lexemes

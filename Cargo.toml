@@ -11,4 +11,3 @@ regex = "1.7.1"
 thiserror = "1.0"
 owo-colors = "3"
 clap = { version = "4", features = ["derive"] }
-derivative = "2.2.0"

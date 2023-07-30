@@ -177,6 +177,12 @@ pub enum ParseErrors {
     GotoNeedLabel,
     #[error("return has no expression")]
     NoReturnExpr,
+    #[error("variable not given a name")]
+    NoVarName,
+    #[error("expected an equals following `let` declaration")]
+    ExpectedEquals,
+    #[error("expected an initialiser expression in a `let` declaration")]
+    NoLetInitialiser,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

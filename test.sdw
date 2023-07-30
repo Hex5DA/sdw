@@ -1,7 +1,6 @@
 fn int adder(int arg1, int arg2) {
     loop {
-        fn int main();
+        fn int main);
         goto @break;
     };
-    @break;
 };

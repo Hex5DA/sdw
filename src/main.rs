@@ -94,6 +94,16 @@ mod print {
                         print_idn!(ident + 1, "[ no return expression ]");
                     }
                 },
+                Stmt::VarDec { name, initialiser } => {
+                    print_idn!(ident, "variable declaration:");
+                    print_idn!(ident, "name -> {}", name.spanned);
+                    stn(&initialiser, ident + 1);
+                },
+                Stmt::VarRes { name, updated } => {
+                    print_idn!(ident, "variable reassignment:");
+                    print_idn!(ident, "name -> {}", name.spanned);
+                    stn(&updated, ident + 1);
+                },
             },
             _ => unimplemented!(),
         }

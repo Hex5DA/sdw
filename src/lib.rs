@@ -3,7 +3,6 @@ pub mod lexer;
 pub mod parser;
 
 pub mod common {
-    use derivative::Derivative;
     use owo_colors::OwoColorize;
 
     #[derive(Default)]
@@ -62,11 +61,9 @@ pub mod common {
         }
     }
 
-    #[derive(Derivative, Clone, Copy)]
-    #[derivative(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Spanned<T> {
         pub spanned: T,
-        #[derivative(Debug = "ignore")]
         pub span: Span,
     }
 

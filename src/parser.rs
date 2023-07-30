@@ -27,7 +27,9 @@ type Type = String;
 #[derive(Debug)]
 pub enum Bound {}
 #[derive(Debug)]
-pub enum Expr {}
+pub enum Expr {
+    IntLiteral(i64)
+}
 
 #[derive(Debug)]
 pub enum Stmt {
@@ -55,6 +57,16 @@ pub enum Stmt {
         // TODO: `STN` or `Expr`?
         expr: Option<Box<STN>>,
     },
+    VarDec {
+        name: Spanned<String>,
+        // TODO: ditto
+        initialiser: Box<STN>,
+    },
+    VarRes {
+        name: Spanned<String>,
+        // TODO: ditto
+        updated: Box<STN>,
+    }
 }
 
 pub type STN = Spanned<ST>;
@@ -179,12 +191,12 @@ impl<'a> Parser<'a> {
 
     fn parse_stmt(&mut self) -> Return<Stmt> {
         let next = self.next()?;
+        let start = next.span;
 
         Ok(match next.spanned {
             LexemeType::Fn => {
                 // fn int addTwo(int arg1, int arg2) { [body] };
                 // ^^ ^^^ ^^^^^^^
-                let start = self.next_span()?;
                 let return_type =
                     attempt!(self, self.parse_type()?, ParseErrors::MissingFnReturnType);
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::MissingFnIdn);
@@ -321,7 +333,6 @@ impl<'a> Parser<'a> {
             }
             LexemeType::Mc => unimplemented!("macros aren't implemented, and won't be for a while"),
             LexemeType::Loop => {
-                let start = self.next_span()?;
                 attempt!(
                     self,
                     self.expect(LexemeType::LBrace)?,
@@ -343,7 +354,6 @@ impl<'a> Parser<'a> {
                 Success(Spanned::new(Stmt::Loop { block }, span))
             }
             LexemeType::At => {
-                let start = self.next_span()?;
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::LabelName);
                 let end = self.next_span()?;
                 attempt!(
@@ -355,7 +365,6 @@ impl<'a> Parser<'a> {
                 Success(Spanned::new(Stmt::Label { name }, span))
             }
             LexemeType::Goto => {
-                let start = self.next_span()?;
                 attempt!(
                     self,
                     self.expect(LexemeType::At)?,
@@ -363,16 +372,19 @@ impl<'a> Parser<'a> {
                 );
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::GotoNeedLabel);
                 let end = self.next_span()?;
+                let span = Span::from_to(start, end);
                 attempt!(
                     self,
                     self.expect(LexemeType::Semi)?,
                     ParseErrors::StmtsEndWithSemi
                 );
-                let span = Span::from_to(start, end);
+
+                println!("[ DEBUG ] {:?}", next);
+                // return Err(SdwErr::from_pos(ParseErrors::NoLetInitialiser, span));
+
                 Success(Spanned::new(Stmt::Goto { name }, span))
             }
             LexemeType::Return => {
-                let start = self.next_span()?;
                 let expr = if let LexemeType::Semi = self.peek()?.spanned {
                     None
                 } else {
@@ -383,11 +395,56 @@ impl<'a> Parser<'a> {
 
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
+
                 Success(Spanned::new(Stmt::Return { expr }, span))
+            }
+            LexemeType::Let => {
+                let name = attempt!(self, self.consume_idn()?, ParseErrors::NoVarName);
+                attempt!(self, self.expect(LexemeType::Equals)?, ParseErrors::ExpectedEquals);
+                // TODO: stub declaration?
+                //       (`let foo;`)
+                let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
+                let initialiser = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
+                let end = self.next_span()?;
+                let span = Span::from_to(start, end);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
+
+                Success(Spanned::new(Stmt::VarDec { name, initialiser }, span))
+            }
+            LexemeType::Idn(idn) => {
+                let name = Spanned::new(idn, next.span);
+                if let Fail = self.expect(LexemeType::Equals)? {
+                    // HACK: what do we want here?  don't want to just error out,
+                    //       cause i think a lone `Idn(..)` is more indicative of a greater error
+                    return Ok(Fail);
+                }
+
+                let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
+                let updated = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
+                let end = self.next_span()?;
+                let span = Span::from_to(start, end);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
+
+                Success(Spanned::new(Stmt::VarRes { name, updated }, span))
+            }
+            LexemeType::Type => {
+                todo!()
             }
             // TODO:
             // - type dec
-            // - variable dec
             // TODO: verify correct behaviour.
             _ => Fail,
         })
@@ -395,7 +452,10 @@ impl<'a> Parser<'a> {
 
     #[allow(dead_code)]
     fn parse_expr(&mut self) -> Return<Expr> {
-        todo!()
+        let _ = self.next();
+        Ok(Success(Spanned::new(
+            Expr::IntLiteral(0), self.last_span
+        )))
     }
     #[allow(dead_code)]
     fn parse_bound(&mut self) -> Return<Bound> {

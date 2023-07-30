@@ -104,6 +104,11 @@ mod print {
                     print_idn!(ident, "name -> {}", name.spanned);
                     stn(&updated, ident + 1);
                 },
+                Stmt::Type { name, bound } => {
+                    print_idn!(ident, "type declaration");
+                    print_idn!(ident + 1, "name -> {}", name.spanned);
+                    stn(bound, ident + 1);
+                }
             },
             _ => unimplemented!(),
         }

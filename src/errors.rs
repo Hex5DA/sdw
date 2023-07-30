@@ -161,14 +161,15 @@ pub enum ParseErrors {
     ExpectedArgType,
     #[error("expected function parameters' identifiers")]
     ExpectedArgIdn,
+    #[error("function stub arguments did not have a comma delimeter. help: have you given an argument a name?")]
+    StubNoArgDel,
+
     #[error("statements should end with a semicolon (`;`)")]
     StmtsEndWithSemi,
     #[error("block not opened - expected an opening brace (`{{`)")]
     BlockNotOpened,
     #[error("block not closed - expected a closing brace (`}}`)")]
     BlockNotClosed,
-    #[error("function stub arguments did not have a comma delimeter. help: have you given an argument a name?")]
-    StubNoArgDel,
     #[error("label was not given a name")]
     LabelName,
     #[error("goto label should start with an `@`")]
@@ -183,6 +184,12 @@ pub enum ParseErrors {
     ExpectedEquals,
     #[error("expected an initialiser expression in a `let` declaration")]
     NoLetInitialiser,
+    #[error("type declaration expects a name")]
+    NoTypeDecName,
+    #[error("no bound")]
+    NoBound,
+    #[error("struct member not provided with a name")]
+    NoMemberName,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

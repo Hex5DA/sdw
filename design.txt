@@ -387,11 +387,12 @@ _EXPR           ->  [_EXPR + _EXPR] | [_EXPR - _EXPR] | [_EXPR * _EXPR] | [_EXPR
                     GLOBIDN |\
                     [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
 
-TYPE            ->  IDN
-BOUND           ->  [] | [IDN[+-1?]]* |\
+TYPE            ->  IDN | &IDN
+BOUND           ->  [] | [IDN[+-1?]]* | &IDN |\
                     int | unt | float | bool | string |\
-                    struct [[{[TYPE IDN[,]-1?]*}] | ;] |\
-                    &BOUND | [fn ([TYPE[,-1?]]?*) -> TYPE] | [mc \[\]]
+                    struct [[{[ANYTYPE IDN[,]-1?]*}] | ;] |\
+                    union [[{[ANYTYPE IDN[,]-1?]*}] | ;] |\
+                    &ANYTYPE | [([TYPE[,-1?]]?*) -> TYPE]
 
 BLOCK           ->  [EXPR | STATEMENT]*
 STATEMENT       ->  fn TYPE IDN([TYPE IDN[,-1?]]?*) BLOCK; |\

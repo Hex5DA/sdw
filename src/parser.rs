@@ -25,10 +25,25 @@ type GlobIdn = Vec<String>;
 type Type = String;
 
 #[derive(Debug)]
-pub enum Bound {}
+pub enum PrimType {
+    Int,
+    Unt,
+    Float,
+    Bool,
+    String,
+}
+
+#[derive(Debug)]
+pub enum Bound {
+    Prim(PrimType),
+    Struct(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
+    Union(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
+    Alias(String),
+}
+
 #[derive(Debug)]
 pub enum Expr {
-    IntLiteral(i64)
+    IntLiteral(i64),
 }
 
 #[derive(Debug)]
@@ -48,25 +63,29 @@ pub enum Stmt {
         block: Box<Block>,
     },
     Label {
-        name: Spanned<String>,
+        name: Spanned<Idn>,
     },
     Goto {
-        name: Spanned<String>,
+        name: Spanned<Idn>,
     },
     Return {
         // TODO: `STN` or `Expr`?
         expr: Option<Box<STN>>,
     },
     VarDec {
-        name: Spanned<String>,
+        name: Spanned<Idn>,
         // TODO: ditto
         initialiser: Box<STN>,
     },
     VarRes {
-        name: Spanned<String>,
+        name: Spanned<Idn>,
         // TODO: ditto
         updated: Box<STN>,
-    }
+    },
+    Type {
+        name: Spanned<Idn>,
+        bound: Box<STN>,
+    },
 }
 
 pub type STN = Spanned<ST>;
@@ -178,15 +197,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type(&mut self) -> Return<Type> {
-        Ok(match self.consume_idn()? {
-            Fail => {
-                self.state
-                    .errors
-                    .push(SdwErr::from_pos(ParseErrors::ExpectedType, self.last_span));
-                Fail
-            }
-            success => success,
-        })
+        self.consume_idn()
     }
 
     fn parse_stmt(&mut self) -> Return<Stmt> {
@@ -379,9 +390,6 @@ impl<'a> Parser<'a> {
                     ParseErrors::StmtsEndWithSemi
                 );
 
-                println!("[ DEBUG ] {:?}", next);
-                // return Err(SdwErr::from_pos(ParseErrors::NoLetInitialiser, span));
-
                 Success(Spanned::new(Stmt::Goto { name }, span))
             }
             LexemeType::Return => {
@@ -405,7 +413,11 @@ impl<'a> Parser<'a> {
             }
             LexemeType::Let => {
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::NoVarName);
-                attempt!(self, self.expect(LexemeType::Equals)?, ParseErrors::ExpectedEquals);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Equals)?,
+                    ParseErrors::ExpectedEquals
+                );
                 // TODO: stub declaration?
                 //       (`let foo;`)
                 let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
@@ -441,25 +453,79 @@ impl<'a> Parser<'a> {
                 Success(Spanned::new(Stmt::VarRes { name, updated }, span))
             }
             LexemeType::Type => {
-                todo!()
+                let name = attempt!(self, self.consume_idn()?, ParseErrors::NoTypeDecName);
+                let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                let bound = Box::new(STN::new(ST::Bound(bound.spanned), bound.span));
+
+                let end = self.next_span()?;
+                let span = Span::from_to(start, end);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
+
+                Success(Spanned::new(Stmt::Type { name, bound }, span))
             }
-            // TODO:
-            // - type dec
             // TODO: verify correct behaviour.
             _ => Fail,
         })
     }
 
-    #[allow(dead_code)]
+    fn parse_bound(&mut self) -> Return<Bound> {
+        let next = self.next()?;
+        let start = next.span;
+
+        Ok(Success(match next.spanned {
+            LexemeType::Idn(potential) => match potential.as_str() {
+                "int" => Spanned::new(Bound::Prim(PrimType::Int), start),
+                "unt" => Spanned::new(Bound::Prim(PrimType::Unt), start),
+                "float" => Spanned::new(Bound::Prim(PrimType::Float), start),
+                "bool" => Spanned::new(Bound::Prim(PrimType::Bool), start),
+                "string" => Spanned::new(Bound::Prim(PrimType::String), start),
+                _ => Spanned::new(Bound::Alias(potential), start),
+            },
+            LexemeType::Struct | LexemeType::Union => {
+                let members = if self.peek()?.spanned != LexemeType::LBrace {
+                    None
+                } else {
+                    attempt!(
+                        self,
+                        self.expect(LexemeType::LBrace)?,
+                        ParseErrors::BlockNotOpened
+                    );
+                    let mut members = Vec::new();
+                    while let Fail = self.expect(LexemeType::RBrace)? {
+                        // TODO: error?
+                        let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                        let name = attempt!(self, self.consume_idn()?, ParseErrors::NoMemberName);
+                        members.push((bound, name));
+                        let _ = self.expect(LexemeType::Comma);
+                    }
+
+                    Some(members)
+                };
+
+                let span = Span::from_to(start, self.last_span);
+                Spanned::new(
+                    match next.spanned {
+                        LexemeType::Struct => Bound::Struct(members),
+                        LexemeType::Union => Bound::Union(members),
+                        _ => unreachable!(),
+                    },
+                    span,
+                )
+            }
+            LexemeType::LParen => todo!(),
+            LexemeType::Amp => todo!(),
+
+            _ => todo!(),
+        }))
+    }
+
     fn parse_expr(&mut self) -> Return<Expr> {
         let _ = self.next();
-        Ok(Success(Spanned::new(
-            Expr::IntLiteral(0), self.last_span
-        )))
-    }
-    #[allow(dead_code)]
-    fn parse_bound(&mut self) -> Return<Bound> {
-        todo!()
+        Ok(Success(Spanned::new(Expr::IntLiteral(0), self.last_span)))
     }
 }
 

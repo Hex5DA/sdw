@@ -1,6 +1,12 @@
-fn int adder(int arg1, int arg2) {
-    loop {
-        fn int main);
-        goto @break;
-    };
+type MyStruct struct {
+    int a,
+    int b,
+};
+type StubStruct union {
+    int a,
+    string b,
+};
+
+fn int main() {
+
 };

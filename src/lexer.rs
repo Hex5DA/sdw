@@ -71,6 +71,7 @@ pub enum LexemeType {
     Idn(String),
     Intlit(u64), // TODO: integer sizes??
     BoolLit(bool),
+    // TODO: string lit?
 
     // keywords
     // procedures
@@ -96,6 +97,8 @@ pub enum LexemeType {
     // misc
     /// `struct`
     Struct,
+    /// `union`
+    Union,
     /// `type`
     Type,
     /// `let`
@@ -143,6 +146,7 @@ impl FromStr for LexemeType {
             "goto" => Self::Goto,
             "loop" => Self::Loop,
             "struct" => Self::Struct,
+            "union" => Self::Union,
             "type" => Self::Type,
             "let" => Self::Let,
             "mod" => Self::Mod,
@@ -217,16 +221,10 @@ impl LexBuffer {
             eline: self.position.eline + 1,
             ..self.position
         };
-        println!("[ DEBUG ] BPOS {:?}", self.position);
         let chunk = self.eat();
         let r#type = chunk.parse().map_err(|err: UnknownLexeme| {
             SdwErr::from_pos(LexErrors::UnrecognisedToken(err.0), span)
         })?;
-
-        if r#type == LexemeType::Goto {
-            println!("[ DEBUG ] APOS {:?}", self.position);
-            println!("[ DEBUG ] SPAN {:?}", span);
-        }
 
         Ok(Lexeme {
             spanned: r#type,

@@ -46,7 +46,7 @@ pub enum Stmt {
         block: Box<Block>,
     },
     Label {
-        name: Spanned<String>
+        name: Spanned<String>,
     },
     Goto {
         name: Spanned<String>,
@@ -54,7 +54,7 @@ pub enum Stmt {
     Return {
         // TODO: `STN` or `Expr`?
         expr: Option<Box<STN>>,
-    }
+    },
 }
 
 pub type STN = Spanned<ST>;
@@ -148,15 +148,11 @@ impl<'a> Parser<'a> {
 
     fn parse(&mut self) -> Result<Block> {
         let mut stmts = Vec::new();
-        while !self.done() {
+        loop {
             // escaping this way feels camp, but i think it's reasonable
             // * as it stands * `{}` aren't overloaded beyond block scope delimters, so
             // this is a reasonable assumption??
-            if let Spanned {
-                spanned: LexemeType::RBrace,
-                ..
-            } = self.peek()?
-            {
+            if self.done() || self.peek()?.spanned == LexemeType::RBrace {
                 break;
             }
 
@@ -228,25 +224,25 @@ impl<'a> Parser<'a> {
                 // fn int addTwo(int arg1, int arg2) { [body] };
                 //               ^^^ ^^^^  ^^^ ^^^^
 
-                // TODO: properly comment this shit lol
-                //       (good luck figuring this out, too!)
-                //       (no i'm not doing it now whilst i still understand it)
-                //       (suffer, future will)
                 if stub {
-                    loop {
-                        if let LexemeType::RParen = self.peek()?.spanned {
-                            break;
-                        }
+                    // if the parameter list is empty, we skip this
+                    if self.peek()?.spanned != LexemeType::RParen {
+                        loop {
+                            let r#type =
+                                attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
+                            stub_parameters.push(r#type);
 
-                        let r#type =
-                            attempt!(self, self.parse_type()?, ParseErrors::ExpectedArgType);
-                        stub_parameters.push(r#type);
-
-                        if let Fail = self.expect(LexemeType::Comma)? {
-                            if let LexemeType::RParen = self.peek()?.spanned {
-                                break;
+                            if let Fail = self.expect(LexemeType::Comma)? {
+                                // if there is neither a comma nor an RParen..
+                                if let LexemeType::RParen = self.peek()?.spanned {
+                                    break;
+                                }
+                                // .. error ..
+                                attempt!(self, Fail, ParseErrors::StubNoArgDel);
+                                // .. because we would be in a situation like this:
+                                // fn int addTwo(int string);
+                                //                  ^ (no comma!)
                             }
-                            attempt!(self, Fail, ParseErrors::StubNoArgDel);
                         }
                     }
                 } else {
@@ -322,35 +318,59 @@ impl<'a> Parser<'a> {
                         span,
                     )
                 })
-            },
-            LexemeType::Mc => unimplemented!("macros are implemented, and won't be for a while"),
+            }
+            LexemeType::Mc => unimplemented!("macros aren't implemented, and won't be for a while"),
             LexemeType::Loop => {
                 let start = self.next_span()?;
-                attempt!(self, self.expect(LexemeType::LBrace)?, ParseErrors::BlockNotOpened);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::LBrace)?,
+                    ParseErrors::BlockNotOpened
+                );
                 let block = Box::new(self.parse()?);
-                attempt!(self, self.expect(LexemeType::RBrace)?, ParseErrors::BlockNotClosed);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RBrace)?,
+                    ParseErrors::BlockNotClosed
+                );
                 let end = self.next_span()?;
-                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
                 let span = Span::from_to(start, end);
                 Success(Spanned::new(Stmt::Loop { block }, span))
-            },
+            }
             LexemeType::At => {
                 let start = self.next_span()?;
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::LabelName);
                 let end = self.next_span()?;
-                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
                 let span = Span::from_to(start, end);
                 Success(Spanned::new(Stmt::Label { name }, span))
-            },
+            }
             LexemeType::Goto => {
                 let start = self.next_span()?;
-                attempt!(self, self.expect(LexemeType::At)?, ParseErrors::LabelNamePrefixedAt);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::At)?,
+                    ParseErrors::LabelNamePrefixedAt
+                );
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::GotoNeedLabel);
                 let end = self.next_span()?;
-                attempt!(self, self.expect(LexemeType::Semi)?, ParseErrors::StmtsEndWithSemi);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Semi)?,
+                    ParseErrors::StmtsEndWithSemi
+                );
                 let span = Span::from_to(start, end);
                 Success(Spanned::new(Stmt::Goto { name }, span))
-            },
+            }
             LexemeType::Return => {
                 let start = self.next_span()?;
                 let expr = if let LexemeType::Semi = self.peek()?.spanned {
@@ -366,8 +386,8 @@ impl<'a> Parser<'a> {
                 Success(Spanned::new(Stmt::Return { expr }, span))
             }
             // TODO:
-            // - type dec 
-            // - variable dec 
+            // - type dec
+            // - variable dec
             // TODO: verify correct behaviour.
             _ => Fail,
         })

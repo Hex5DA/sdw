@@ -28,102 +28,166 @@ mod print {
         }};
     }
 
-    fn stn(node: &STN, ident: usize) {
-        match &node.spanned {
-            ST::Stmt(stmt) => match stmt {
-                Stmt::Fn {
-                    return_type,
-                    name,
-                    parameters,
-                    body,
-                } => {
-                    print_idn!(ident, "function:");
-                    print_idn!(ident + 1, "name -> {}", name.spanned);
-                    print_idn!(ident + 1, "return type -> {}", return_type.spanned);
-                    print_idn!(ident + 1, "parameters:");
+    fn ste(_ident: usize, _expr: &Expr) {
+        todo!()
+    }
 
-                    for (r#type, name) in parameters {
-                        print_idn!(
-                            ident + 2,
-                            "type, name -> {}, {}",
-                            r#type.spanned,
-                            name.spanned
-                        );
-                    }
-                    if parameters.is_empty() {
-                        print_idn!(ident + 2, "[ none ]");
-                    }
-
-                    print_idn!(ident + 1, "body:");
-                    st(body, ident + 2);
-                }
-                Stmt::Stub {
-                    return_type,
-                    name,
-                    parameters,
-                } => {
-                    print_idn!(ident, "function stub:");
-                    print_idn!(ident + 1, "name -> {}", name.spanned);
-                    print_idn!(ident + 1, "return type -> {}", return_type.spanned);
-                    print_idn!(ident + 1, "parameters:");
-
-                    for r#type in parameters {
-                        print_idn!(ident + 2, "type -> {}", r#type.spanned);
-                    }
-                    if parameters.is_empty() {
-                        print_idn!(ident + 2, "[ none ]");
+    fn stb(ident: usize, bound: &Bound) {
+        match bound {
+            Bound::Struct(members) => {
+                print_idn!(ident, "struct declaration:");
+                if let Some(members) = members {
+                    for member in members {
+                        print_idn!(ident + 1, "member name -> {}", member.1.spanned);
+                        print_idn!(ident + 1, "member type:");
+                        stb(ident + 2, &member.0.spanned);
                     }
                 }
-                Stmt::Loop { block } => {
-                    print_idn!(ident, "loop:");
-                    st(block, ident + 1);
-                },
-                Stmt::Label { name } => {
-                    print_idn!(ident, "label:");
-                    print_idn!(ident + 1, "name -> {}", name.spanned);
-                },
-                Stmt::Goto { name } => {
-                    print_idn!(ident, "goto:");
-                    print_idn!(ident + 1, "target -> {}", name.spanned);
-                },
-                Stmt::Return { expr } => {
-                    print_idn!(ident, "return:");
-                    if let Some(expr) = expr{
-                        stn(&expr, ident + 1);
-                    } else {
-                        print_idn!(ident + 1, "[ no return expression ]");
+            }
+            Bound::Union(members) => {
+                print_idn!(ident, "union declaration:");
+                if let Some(members) = members {
+                    for member in members {
+                        print_idn!(ident + 1, "member name -> {}", member.1.spanned);
+                        print_idn!(ident + 1, "member type:");
+                        stb(ident + 2, &member.0.spanned);
                     }
-                },
-                Stmt::VarDec { name, initialiser } => {
-                    print_idn!(ident, "variable declaration:");
-                    print_idn!(ident, "name -> {}", name.spanned);
-                    stn(&initialiser, ident + 1);
-                },
-                Stmt::VarRes { name, updated } => {
-                    print_idn!(ident, "variable reassignment:");
-                    print_idn!(ident, "name -> {}", name.spanned);
-                    stn(&updated, ident + 1);
-                },
-                Stmt::Type { name, bound } => {
-                    print_idn!(ident, "type declaration");
-                    print_idn!(ident + 1, "name -> {}", name.spanned);
-                    stn(bound, ident + 1);
                 }
-            },
-            other => println!("{:#?}", other),
+            }
+            Bound::Prim(prim) => {
+                print_idn!(ident, "primitive type:");
+                print_idn!(
+                    ident,
+                    "{}",
+                    match prim.spanned {
+                        PrimType::Int => "int",
+                        PrimType::Unt => "unt",
+                        PrimType::Bool => "bool",
+                        PrimType::Float => "float",
+                        PrimType::String => "string",
+                    }
+                )
+            }
+            Bound::Alias(to) => {
+                print_idn!(ident, "type alias:");
+                print_idn!(ident, "name -> {}", to.spanned);
+            }
+            Bound::Pointer(to) => {
+                print_idn!(ident, "pointer:");
+                print_idn!(ident, "points to:");
+                stb(ident + 1, &to.spanned);
+            }
+            Bound::FnPtr { args, return_type } => {
+                print_idn!(ident, "function pointer:");
+                print_idn!(ident, "return type -> {}", return_type.spanned);
+                for arg in args {
+                    print_idn!(ident, "arg type -> {}", arg.spanned);
+                }
+            }
+        }
+    }
+
+    fn sts(ident: usize, stmt: &Stmt) {
+        match stmt {
+            Stmt::Fn {
+                return_type,
+                name,
+                parameters,
+                body,
+            } => {
+                print_idn!(ident, "function:");
+                print_idn!(ident + 1, "name -> {}", name.spanned);
+                print_idn!(ident + 1, "return type -> {}", return_type.spanned);
+                print_idn!(ident + 1, "parameters:");
+
+                for (r#type, name) in parameters {
+                    print_idn!(
+                        ident + 2,
+                        "type, name -> {}, {}",
+                        r#type.spanned,
+                        name.spanned
+                    );
+                }
+                if parameters.is_empty() {
+                    print_idn!(ident + 2, "[ none ]");
+                }
+
+                print_idn!(ident + 1, "body:");
+                stns(ident + 2, &body);
+            }
+            Stmt::Stub {
+                return_type,
+                name,
+                parameters,
+            } => {
+                print_idn!(ident, "function stub:");
+                print_idn!(ident + 1, "name -> {}", name.spanned);
+                print_idn!(ident + 1, "return type -> {}", return_type.spanned);
+                print_idn!(ident + 1, "parameters:");
+
+                for r#type in parameters {
+                    print_idn!(ident + 2, "type -> {}", r#type.spanned);
+                }
+                if parameters.is_empty() {
+                    print_idn!(ident + 2, "[ none ]");
+                }
+            }
+            Stmt::Loop { block } => {
+                print_idn!(ident, "loop:");
+                stns(ident + 1, block);
+            }
+            Stmt::Label { name } => {
+                print_idn!(ident, "label:");
+                print_idn!(ident + 1, "name -> {}", name.spanned);
+            }
+            Stmt::Goto { name } => {
+                print_idn!(ident, "goto:");
+                print_idn!(ident + 1, "target -> {}", name.spanned);
+            }
+            Stmt::Return { expr } => {
+                print_idn!(ident, "return:");
+                if let Some(expr) = expr {
+                    ste(ident + 1, &expr.spanned);
+                } else {
+                    print_idn!(ident + 1, "[ no return expression ]");
+                }
+            }
+            Stmt::VarDec { name, initialiser } => {
+                print_idn!(ident, "variable declaration:");
+                print_idn!(ident, "name -> {}", name.spanned);
+                ste(ident + 1, &initialiser.spanned);
+            }
+            Stmt::VarRes { name, updated } => {
+                print_idn!(ident, "variable reassignment:");
+                print_idn!(ident, "name -> {}", name.spanned);
+                ste(ident + 1, &updated.spanned);
+            }
+            Stmt::Type { name, bound } => {
+                print_idn!(ident, "type declaration");
+                print_idn!(ident + 1, "name -> {}", name.spanned);
+                stb(ident + 1, &bound.spanned);
+            }
+        }
+    }
+
+    fn st(ident: usize, node: &ST) {
+        match node {
+            ST::Stmt(stmt) => sts(ident, stmt),
+            ST::Bound(bound) => stb(ident, bound),
+            ST::Expr(expr) => ste(ident, expr),
         }
     }
 
     /// `ident` here is the identation for the block to be prefixed with
     /// (ie. it is the _caller's_ responsibility to `ident + 1`)
-    fn st(root: &Vec<STN>, ident: usize) {
+    fn stns(ident: usize, root: &Vec<STN>) {
         for node in root {
-            stn(node, ident)
+            st(ident, &node.spanned);
         }
     }
 
     pub fn syntax_tree(root: &Vec<STN>) {
-        st(root, 0);
+        stns(0, root);
     }
 
     pub fn lexemes(lexemes: &Vec<Lexeme>) {
@@ -169,10 +233,7 @@ fn main() {
     }
 
     print::done(&before);
-    println!(
-        "produced {} lexemes",
-        lexemes.len().bright_green()
-    );
+    println!("produced {} lexemes", lexemes.len().bright_green());
 
     println!();
     if args.verbose {

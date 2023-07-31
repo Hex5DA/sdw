@@ -1,2 +1,19 @@
 type DoesThing () -> string;
 fn int doThing(DoesThing thing_doer) {};
+
+type U union {
+    string a,
+    int b,
+    bool c,
+    ect ect,
+};
+
+type S struct {
+    thing a,
+    bob c,
+    int h,
+    float y,
+};
+
+type Ser S;
+type SerPtr &Ser;

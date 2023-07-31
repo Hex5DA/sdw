@@ -33,15 +33,16 @@ pub enum PrimType {
     String,
 }
 
+// TODO: span these
 #[derive(Debug)]
 pub enum Bound {
-    Prim(PrimType),
+    Prim(Spanned<PrimType>),
     Struct(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
     Union(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
-    Alias(String),
-    Pointer(Box<Self>),
+    Alias(Spanned<String>),
+    Pointer(Box<Spanned<Self>>),
     FnPtr {
-        args: Vec<Spanned<Type>>, 
+        args: Vec<Spanned<Type>>,
         return_type: Spanned<Type>,
     },
 }
@@ -75,21 +76,21 @@ pub enum Stmt {
     },
     Return {
         // TODO: `STN` or `Expr`?
-        expr: Option<Box<STN>>,
+        expr: Option<Spanned<Expr>>,
     },
     VarDec {
         name: Spanned<Idn>,
         // TODO: ditto
-        initialiser: Box<STN>,
+        initialiser: Spanned<Expr>,
     },
     VarRes {
         name: Spanned<Idn>,
         // TODO: ditto
-        updated: Box<STN>,
+        updated: Spanned<Expr>,
     },
     Type {
         name: Spanned<Idn>,
-        bound: Box<STN>,
+        bound: Spanned<Bound>,
     },
 }
 
@@ -401,9 +402,11 @@ impl<'a> Parser<'a> {
                 let expr = if let LexemeType::Semi = self.peek()?.spanned {
                     None
                 } else {
-                    let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoReturnExpr);
-                    let stn = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
-                    Some(stn)
+                    Some(attempt!(
+                        self,
+                        self.parse_expr()?,
+                        ParseErrors::NoReturnExpr
+                    ))
                 };
 
                 let end = self.next_span()?;
@@ -425,8 +428,7 @@ impl<'a> Parser<'a> {
                 );
                 // TODO: stub declaration?
                 //       (`let foo;`)
-                let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
-                let initialiser = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
+                let initialiser = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
                 attempt!(
@@ -445,8 +447,7 @@ impl<'a> Parser<'a> {
                     return Ok(Fail);
                 }
 
-                let expr = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
-                let updated = Box::new(STN::new(ST::Expr(expr.spanned), expr.span));
+                let updated = attempt!(self, self.parse_expr()?, ParseErrors::NoLetInitialiser);
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
                 attempt!(
@@ -460,7 +461,6 @@ impl<'a> Parser<'a> {
             LexemeType::Type => {
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::NoTypeDecName);
                 let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
-                let bound = Box::new(STN::new(ST::Bound(bound.spanned), bound.span));
 
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
@@ -483,12 +483,12 @@ impl<'a> Parser<'a> {
 
         Ok(Success(match next.spanned {
             LexemeType::Idn(potential) => match potential.as_str() {
-                "int" => Spanned::new(Bound::Prim(PrimType::Int), start),
-                "unt" => Spanned::new(Bound::Prim(PrimType::Unt), start),
-                "float" => Spanned::new(Bound::Prim(PrimType::Float), start),
-                "bool" => Spanned::new(Bound::Prim(PrimType::Bool), start),
-                "string" => Spanned::new(Bound::Prim(PrimType::String), start),
-                _ => Spanned::new(Bound::Alias(potential), start),
+                "int" => Spanned::new(Bound::Prim(Spanned::new(PrimType::Int, start)), start),
+                "unt" => Spanned::new(Bound::Prim(Spanned::new(PrimType::Unt, start)), start),
+                "float" => Spanned::new(Bound::Prim(Spanned::new(PrimType::Float, start)), start),
+                "bool" => Spanned::new(Bound::Prim(Spanned::new(PrimType::Bool, start)), start),
+                "string" => Spanned::new(Bound::Prim(Spanned::new(PrimType::String, start)), start),
+                _ => Spanned::new(Bound::Alias(Spanned::new(potential, start)), start),
             },
             LexemeType::Struct | LexemeType::Union => {
                 let members = if self.peek()?.spanned != LexemeType::LBrace {
@@ -524,8 +524,8 @@ impl<'a> Parser<'a> {
             LexemeType::Amp => {
                 let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
                 let span = Span::from_to(start, self.last_span);
-                Spanned::new(Bound::Pointer(Box::new(bound.spanned)), span)
-            },
+                Spanned::new(Bound::Pointer(Box::new(bound)), span)
+            }
             LexemeType::LParen => {
                 let mut args = Vec::new();
                 if self.peek()?.spanned != LexemeType::RParen {
@@ -542,17 +542,29 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
-                attempt!(self, self.expect(LexemeType::Dash)?, ParseErrors::FnPtrTyArrow);
-                attempt!(self, self.expect(LexemeType::RAng)?, ParseErrors::FnPtrTyArrow);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RParen)?,
+                    ParseErrors::FnArgListNotClosed
+                );
+                attempt!(
+                    self,
+                    self.expect(LexemeType::Dash)?,
+                    ParseErrors::FnPtrTyArrow
+                );
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RAng)?,
+                    ParseErrors::FnPtrTyArrow
+                );
 
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
-                let return_type = attempt!(self, self.parse_type()?, ParseErrors::ExpectedFnPtrReturnTy);
+                let return_type =
+                    attempt!(self, self.parse_type()?, ParseErrors::ExpectedFnPtrReturnTy);
 
                 Spanned::new(Bound::FnPtr { args, return_type }, span)
-            },
-
+            }
             _ => attempt!(self, Fail, ParseErrors::InvalidBound),
         }))
     }

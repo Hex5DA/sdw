@@ -39,6 +39,11 @@ pub enum Bound {
     Struct(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
     Union(Option<Vec<(Spanned<Bound>, Spanned<Idn>)>>),
     Alias(String),
+    Pointer(Box<Self>),
+    FnPtr {
+        args: Vec<Spanned<Type>>, 
+        return_type: Spanned<Type>,
+    },
 }
 
 #[derive(Debug)]
@@ -516,10 +521,39 @@ impl<'a> Parser<'a> {
                     span,
                 )
             }
-            LexemeType::LParen => todo!(),
-            LexemeType::Amp => todo!(),
+            LexemeType::Amp => {
+                let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                let span = Span::from_to(start, self.last_span);
+                Spanned::new(Bound::Pointer(Box::new(bound.spanned)), span)
+            },
+            LexemeType::LParen => {
+                let mut args = Vec::new();
+                if self.peek()?.spanned != LexemeType::RParen {
+                    while self.peek()?.spanned != LexemeType::RParen {
+                        let r#type = attempt!(self, self.parse_type()?, ParseErrors::FnPtrTyNoType);
+                        args.push(r#type);
 
-            _ => todo!(),
+                        if let Fail = self.expect(LexemeType::Comma)? {
+                            if self.peek()?.spanned == LexemeType::RParen {
+                                break;
+                            }
+                            attempt!(self, Fail, ParseErrors::StubNoArgDel);
+                        }
+                    }
+                }
+
+                attempt!(self, self.expect(LexemeType::RParen)?, ParseErrors::FnArgListNotClosed);
+                attempt!(self, self.expect(LexemeType::Dash)?, ParseErrors::FnPtrTyArrow);
+                attempt!(self, self.expect(LexemeType::RAng)?, ParseErrors::FnPtrTyArrow);
+
+                let end = self.next_span()?;
+                let span = Span::from_to(start, end);
+                let return_type = attempt!(self, self.parse_type()?, ParseErrors::ExpectedFnPtrReturnTy);
+
+                Spanned::new(Bound::FnPtr { args, return_type }, span)
+            },
+
+            _ => attempt!(self, Fail, ParseErrors::InvalidBound),
         }))
     }
 

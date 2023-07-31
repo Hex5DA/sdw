@@ -1,12 +1,2 @@
-type MyStruct struct {
-    int a,
-    int b,
-};
-type StubStruct union {
-    int a,
-    string b,
-};
-
-fn int main() {
-
-};
+type DoesThing () -> string;
+fn int doThing(DoesThing thing_doer) {};

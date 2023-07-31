@@ -110,7 +110,7 @@ mod print {
                     stn(bound, ident + 1);
                 }
             },
-            _ => unimplemented!(),
+            other => println!("{:#?}", other),
         }
     }
 

@@ -190,6 +190,14 @@ pub enum ParseErrors {
     NoBound,
     #[error("struct member not provided with a name")]
     NoMemberName,
+    #[error("missing a type in a function pointer type declration")]
+    FnPtrTyNoType,
+    #[error("malformed function pointer type arrow (expected `->`)")]
+    FnPtrTyArrow,
+    #[error("expected a return type in function pointer type")]
+    ExpectedFnPtrReturnTy,
+    #[error("type bound not recognised")]
+    InvalidBound,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

@@ -377,7 +377,7 @@ GLOBIDN         ->  [[[IDN:]-1?]IDN] | IDN
 EXPR            ->  [EXPR | EXPR;]
 _EXPR           ->  [_EXPR + _EXPR] | [_EXPR - _EXPR] | [_EXPR * _EXPR] | [_EXPR / _EXPR] | [_EXPR % _EXPR] |\
                     [_EXPR | _EXPR] | [_EXPR & _EXPR] | [_EXPR ~ _EXPR] | [_EXPR ^ _EXPR] | [_EXPR >> _EXPR] | [_EXPR << _EXPR] |\
-                    [-_EXPR] | [+_EXPR] [_EXPR || _EXPR] | [_EXPR && _EXPR] | [!_EXPR] |\
+                    [-_EXPR] | [+_EXPR] | [_EXPR || _EXPR] | [_EXPR && _EXPR] | [!_EXPR] |\
                     [_EXPR == _EXPR] | [_EXPR != _EXPR] | [_EXPR > _EXPR] | [_EXPR < _EXPR] | [_EXPR => _EXPR] | [_EXPR <= _EXPR] |\
                     [&_EXPR] | [*_EXPR] |\
                     { EXPR* } | (_EXPR) |\

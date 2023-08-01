@@ -186,8 +186,6 @@ pub enum ParseErrors {
     NoLetInitialiser,
     #[error("type declaration expects a name")]
     NoTypeDecName,
-    #[error("no bound")]
-    NoBound,
     #[error("struct member not provided with a name")]
     NoMemberName,
     #[error("missing a type in a function pointer type declration")]
@@ -198,6 +196,9 @@ pub enum ParseErrors {
     ExpectedFnPtrReturnTy,
     #[error("type bound not recognised")]
     InvalidBound,
+
+    #[error("subexpr not closed - expected a closing paren (`)`)")]
+    SubExprNotClosed,
 
     #[error("reached the end of the token stack; {0}")]
     TkStackEmpty(Box<ParseErrors>),

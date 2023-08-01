@@ -13,6 +13,14 @@ macro_rules! attempt {
             }
         }
     }};
+    ($result:expr) => {{
+        match $result {
+            Success(success) => success,
+            Fail => {
+                return Ok(Fail);
+            }
+        }
+    }};
 }
 
 pub mod prelude {
@@ -20,6 +28,8 @@ pub mod prelude {
 }
 
 type Idn = String;
+// TODO: some of the codebase will need retrofitting to work with these
+// TODO: rename to `Path`?
 #[allow(dead_code)]
 type GlobIdn = Vec<String>;
 type Type = String;
@@ -33,7 +43,7 @@ pub enum PrimType {
     String,
 }
 
-// TODO: span these
+// TODO: unspan these
 #[derive(Debug)]
 pub enum Bound {
     Prim(Spanned<PrimType>),
@@ -47,9 +57,54 @@ pub enum Bound {
     },
 }
 
+// TODO: how tf do blocks work
+
+type ExprSelf = Box<Spanned<Expr>>;
 #[derive(Debug)]
 pub enum Expr {
     IntLiteral(i64),
+    BoolLiteral(bool),
+    Variable(String),
+    UnaryNot(ExprSelf),
+    UnaryNeg(ExprSelf),
+    UnaryPos(ExprSelf),
+    SubExpr(ExprSelf),
+    Block(ExprSelf),
+    FnCall(String, Vec<ExprSelf>),
+    BiOp(ExprSelf, BiOps, ExprSelf),
+    Referal(ExprSelf),
+    Indir(ExprSelf),
+    ObjMember(Spanned<String>, Spanned<String>),
+    Cond {
+        condition: ExprSelf,
+        then: BlockExpr,
+        elifs: Vec<(ExprSelf, BlockExpr)>,
+        r#else: Option<BlockExpr>,
+    }
+}
+
+#[derive(Debug)]
+pub enum BiOps {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    BitOr,
+    BitAnd,
+    BitNot,
+    BitXor,
+    BitRshift,
+    BitLShift,
+    LogOr,
+    LogAnd,
+    LogNot,
+    Eq,
+    NEq,
+    Gr,
+    Ls,
+    GrEq,
+    LsEq,
 }
 
 #[derive(Debug)]
@@ -75,27 +130,29 @@ pub enum Stmt {
         name: Spanned<Idn>,
     },
     Return {
-        // TODO: `STN` or `Expr`?
         expr: Option<Spanned<Expr>>,
     },
     VarDec {
         name: Spanned<Idn>,
-        // TODO: ditto
         initialiser: Spanned<Expr>,
     },
     VarRes {
         name: Spanned<Idn>,
-        // TODO: ditto
         updated: Spanned<Expr>,
     },
     Type {
         name: Spanned<Idn>,
         bound: Spanned<Bound>,
     },
+    Discard {
+        expr: Expr,
+    },
 }
 
 pub type STN = Spanned<ST>;
 pub type Block = Vec<STN>;
+pub type BlockExpr = Vec<Spanned<Expr>>;
+
 #[derive(Debug)]
 pub enum ST {
     Expr(Expr),
@@ -460,7 +517,7 @@ impl<'a> Parser<'a> {
             }
             LexemeType::Type => {
                 let name = attempt!(self, self.consume_idn()?, ParseErrors::NoTypeDecName);
-                let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                let bound = attempt!(self.parse_bound()?);
 
                 let end = self.next_span()?;
                 let span = Span::from_to(start, end);
@@ -502,7 +559,7 @@ impl<'a> Parser<'a> {
                     let mut members = Vec::new();
                     while let Fail = self.expect(LexemeType::RBrace)? {
                         // TODO: error?
-                        let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                        let bound = attempt!(self.parse_bound()?);
                         let name = attempt!(self, self.consume_idn()?, ParseErrors::NoMemberName);
                         members.push((bound, name));
                         let _ = self.expect(LexemeType::Comma);
@@ -522,7 +579,7 @@ impl<'a> Parser<'a> {
                 )
             }
             LexemeType::Amp => {
-                let bound = attempt!(self, self.parse_bound()?, ParseErrors::NoBound);
+                let bound = attempt!(self.parse_bound()?);
                 let span = Span::from_to(start, self.last_span);
                 Spanned::new(Bound::Pointer(Box::new(bound)), span)
             }
@@ -570,8 +627,96 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr(&mut self) -> Return<Expr> {
-        let _ = self.next();
-        Ok(Success(Spanned::new(Expr::IntLiteral(0), self.last_span)))
+        self.parse_expr_rbp(0)
+    }
+
+    fn parse_expr_rbp(&mut self, rbp: usize) -> Return<Expr> {
+        let mut left = attempt!(self.nud()?);
+        while self.peek()?.spanned.prec() > rbp {
+            left = attempt!(self.led(left)?);
+        }
+
+        Ok(Success(left))
+    }
+
+    fn nud(&mut self) -> Return<Expr> {
+        let start = self.next_span()?;
+        Ok(Success(match self.next()?.spanned {
+            #[rustfmt::skip]
+            LexemeType::Intlit(il) => Spanned::new(Expr::IntLiteral(il), start),
+            #[rustfmt::skip]
+            LexemeType::BoolLit(bl) => Spanned::new(Expr::BoolLiteral(bl), start),
+            LexemeType::Cross => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::UnaryPos(Box::new(expr)), span)
+            }
+            LexemeType::Dash => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::UnaryNeg(Box::new(expr)), span)
+            }
+            LexemeType::LParen => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, self.next_span()?);
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RParen)?,
+                    ParseErrors::SubExprNotClosed
+                );
+                Spanned::new(Expr::SubExpr(Box::new(expr)), span)
+            }
+            /*
+            *EXPR           ->  [EXPR | EXPR;]
+            _EXPR           ->  
+                                if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
+                                GLOBIDN |\
+                                [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
+                         * */
+            LexemeType::Idn(name) => match self.peek()?.spanned {
+                LexemeType::LParen => {
+                    let mut args = Vec::new();
+                    if self.peek()?.spanned != LexemeType::RParen {
+                        while self.peek()?.spanned != LexemeType::RParen {
+                            let arg = attempt!(self.parse_expr()?);
+                            args.push(Box::new(arg));
+
+                            if let Fail = self.expect(LexemeType::Comma)? {
+                                if self.peek()?.spanned == LexemeType::RParen {
+                                    break;
+                                }
+                                attempt!(self, Fail, ParseErrors::StubNoArgDel);
+                            }
+                        }
+                    }
+
+                    let end = self.next_span()?;
+                    let span = Span::from_to(start, end);
+                    attempt!(
+                        self,
+                        self.expect(LexemeType::RParen)?,
+                        ParseErrors::FnArgListNotClosed
+                    );
+                    Spanned::new(Expr::FnCall(name, args), span)
+                }
+                _ => Spanned::new(Expr::Variable(name), start),
+            },
+
+            _ => todo!(),
+        }))
+    }
+
+    fn led(&mut self, _left: Spanned<Expr>) -> Return<Expr> {
+        todo!()
+    }
+}
+
+impl LexemeType {
+    fn prec(&self) -> usize {
+        match self {
+            LexemeType::Cross | LexemeType::Dash => 5,
+            _ => 0,
+        }
     }
 }
 

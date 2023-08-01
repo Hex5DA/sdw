@@ -69,7 +69,7 @@ pub enum LexemeType {
 
     /// string of characters (`[_ | a-z | a-Z][_ | a-z | A-Z | 0-9]?*`)
     Idn(String),
-    Intlit(u64), // TODO: integer sizes??
+    Intlit(i64), // TODO: integer sizes??
     BoolLit(bool),
     // TODO: string lit?
 
@@ -155,7 +155,7 @@ impl FromStr for LexemeType {
             tok => {
                 if IDN_REGEX.is_match(tok) {
                     Self::Idn(tok.to_string())
-                } else if let Ok(num) = tok.parse::<u64>() {
+                } else if let Ok(num) = tok.parse() {
                     Self::Intlit(num)
                 } else {
                     return Err(UnknownLexeme(tok.to_string()));

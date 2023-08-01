@@ -113,7 +113,7 @@ mod print {
                 }
 
                 print_idn!(ident + 1, "body:");
-                stns(ident + 2, &body);
+                syntax_tree_ident(ident + 2, &body);
             }
             Stmt::Stub {
                 return_type,
@@ -134,7 +134,7 @@ mod print {
             }
             Stmt::Loop { block } => {
                 print_idn!(ident, "loop:");
-                stns(ident + 1, block);
+                syntax_tree_ident(ident + 1, block);
             }
             Stmt::Label { name } => {
                 print_idn!(ident, "label:");
@@ -167,27 +167,24 @@ mod print {
                 print_idn!(ident + 1, "name -> {}", name.spanned);
                 stb(ident + 1, &bound.spanned);
             }
-        }
-    }
-
-    fn st(ident: usize, node: &ST) {
-        match node {
-            ST::Stmt(stmt) => sts(ident, stmt),
-            ST::Bound(bound) => stb(ident, bound),
-            ST::Expr(expr) => ste(ident, expr),
+            Stmt::Discard { .. } => todo!()
         }
     }
 
     /// `ident` here is the identation for the block to be prefixed with
     /// (ie. it is the _caller's_ responsibility to `ident + 1`)
-    fn stns(ident: usize, root: &Vec<STN>) {
-        for node in root {
-            st(ident, &node.spanned);
+    fn syntax_tree_ident(ident: usize, root: &Block) {
+        for statement in &root.stmts {
+            sts(ident, &statement.spanned);
+        }
+
+        if let Some(tail) = &root.tail {
+            ste(ident, &tail.spanned);
         }
     }
 
-    pub fn syntax_tree(root: &Vec<STN>) {
-        stns(0, root);
+    pub fn syntax_tree(root: &Block) {
+        syntax_tree_ident(0, root);
     }
 
     pub fn lexemes(lexemes: &Vec<Lexeme>) {

@@ -57,8 +57,6 @@ pub enum Bound {
     },
 }
 
-// TODO: how tf do blocks work
-
 type ExprSelf = Box<Spanned<Expr>>;
 #[derive(Debug)]
 pub enum Expr {
@@ -69,7 +67,6 @@ pub enum Expr {
     UnaryNeg(ExprSelf),
     UnaryPos(ExprSelf),
     SubExpr(ExprSelf),
-    Block(ExprSelf),
     FnCall(String, Vec<ExprSelf>),
     BiOp(ExprSelf, BiOps, ExprSelf),
     Referal(ExprSelf),
@@ -77,9 +74,27 @@ pub enum Expr {
     ObjMember(Spanned<String>, Spanned<String>),
     Cond {
         condition: ExprSelf,
-        then: BlockExpr,
-        elifs: Vec<(ExprSelf, BlockExpr)>,
-        r#else: Option<BlockExpr>,
+        then: Spanned<Block>,
+        elifs: Vec<(ExprSelf, Spanned<Block>)>,
+        r#else: Option<Spanned<Block>>,
+    },
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct Block {
+    /// are subexpressions
+    /// may contain statements
+    /// value is equal to the last expression,
+    ///   or is `Discard` if the last element is a statement,
+    ///   or if the block is empty `{}`
+    pub stmts: Vec<Spanned<Stmt>>,
+    pub tail: Option<Box<Spanned<Expr>>>,
+}
+
+impl From<Vec<Spanned<Stmt>>> for Block {
+    fn from(stmts: Vec<Spanned<Stmt>>) -> Self {
+        Self { stmts, tail: None }
     }
 }
 
@@ -147,17 +162,6 @@ pub enum Stmt {
     Discard {
         expr: Expr,
     },
-}
-
-pub type STN = Spanned<ST>;
-pub type Block = Vec<STN>;
-pub type BlockExpr = Vec<Spanned<Expr>>;
-
-#[derive(Debug)]
-pub enum ST {
-    Expr(Expr),
-    Bound(Bound),
-    Stmt(Stmt),
 }
 
 #[derive(Debug)]
@@ -251,12 +255,12 @@ impl<'a> Parser<'a> {
             }
 
             match self.parse_stmt()? {
-                Success(leaf) => stmts.push(STN::new(ST::Stmt(leaf.spanned), leaf.span)),
+                Success(leaf) => stmts.push(leaf),
                 Fail => continue,
             }
         }
 
-        Ok(stmts)
+        Ok(stmts.into())
     }
 
     fn parse_type(&mut self) -> Return<Type> {
@@ -639,6 +643,13 @@ impl<'a> Parser<'a> {
         Ok(Success(left))
     }
 
+    /*
+    _EXPR           ->
+                        if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
+                        GLOBIDN |\
+                        [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
+    */
+
     fn nud(&mut self) -> Return<Expr> {
         let start = self.next_span()?;
         Ok(Success(match self.next()?.spanned {
@@ -666,13 +677,6 @@ impl<'a> Parser<'a> {
                 );
                 Spanned::new(Expr::SubExpr(Box::new(expr)), span)
             }
-            /*
-            *EXPR           ->  [EXPR | EXPR;]
-            _EXPR           ->  
-                                if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
-                                GLOBIDN |\
-                                [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
-                         * */
             LexemeType::Idn(name) => match self.peek()?.spanned {
                 LexemeType::LParen => {
                     let mut args = Vec::new();
@@ -701,7 +705,6 @@ impl<'a> Parser<'a> {
                 }
                 _ => Spanned::new(Expr::Variable(name), start),
             },
-
             _ => todo!(),
         }))
     }
@@ -720,7 +723,7 @@ impl LexemeType {
     }
 }
 
-pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Vec<STN>> {
+pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Block> {
     let mut parser = Parser::new(lexemes, state);
     parser.parse()
 }

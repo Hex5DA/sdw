@@ -27,11 +27,19 @@ pub mod prelude {
     pub use super::*;
 }
 
-type Idn = String;
+// TODO: directives (needs rethinking conceptually?)
+// TODO: `struct` / `union` initialisation syntax
+
 // TODO: some of the codebase will need retrofitting to work with these
-// TODO: rename to `Path`?
 #[allow(dead_code)]
-type GlobIdn = Vec<String>;
+type Path = Vec<Segment>;
+#[allow(dead_code)]
+pub enum Segment {
+    Idn(String),
+    Wildcard,
+}
+
+type Idn = String;
 type Type = String;
 
 #[derive(Debug)]
@@ -67,9 +75,11 @@ pub enum Expr {
     UnaryNeg(ExprSelf),
     UnaryPos(ExprSelf),
     SubExpr(ExprSelf),
-    FnCall(String, Vec<ExprSelf>),
+    FnCall(Spanned<String>, Vec<ExprSelf>),
     BiOp(ExprSelf, BiOps, ExprSelf),
+    /// &[var]
     Referal(ExprSelf),
+    /// *[var]
     Indir(ExprSelf),
     ObjMember(Spanned<String>, Spanned<String>),
     Cond {
@@ -128,7 +138,7 @@ pub enum Stmt {
         return_type: Spanned<Type>,
         name: Spanned<Idn>,
         parameters: Vec<(Spanned<Type>, Spanned<Idn>)>,
-        body: Box<Block>,
+        body: Box<Spanned<Block>>,
     },
     Stub {
         return_type: Spanned<Type>,
@@ -195,10 +205,7 @@ impl<'a> Parser<'a> {
     // not for external usage!
     fn _tk_empty(&self) -> Result<()> {
         if self.lexemes.is_empty() {
-            Err(SdwErr::from_pos(
-                ParseErrors::TkStackEmpty(Box::new(ParseErrors::ExpectedIdn)),
-                self.last_span,
-            ))
+            Err(SdwErr::from_pos(ParseErrors::TkStackEmpty, self.last_span))
         } else {
             Ok(())
         }
@@ -244,11 +251,12 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse(&mut self) -> Result<Block> {
+    // TODO: how parse expressions thing maybe yes?? :)
+    fn parse_block(&mut self) -> Result<Block> {
         let mut stmts = Vec::new();
         loop {
             // escaping this way feels camp, but i think it's reasonable
-            // * as it stands * `{}` aren't overloaded beyond block scope delimters, so
+            // braces aren't overloaded beyond block scope delimters, so
             // this is a reasonable assumption??
             if self.done() || self.peek()?.spanned == LexemeType::RBrace {
                 break;
@@ -261,6 +269,23 @@ impl<'a> Parser<'a> {
         }
 
         Ok(stmts.into())
+    }
+
+    fn parse_block_braces(&mut self) -> Return<Block> {
+        let start = self.next_span()?;
+        attempt!(
+            self,
+            self.expect(LexemeType::LBrace)?,
+            ParseErrors::BlockNotOpened
+        );
+        let block = self.parse_block()?;
+        attempt!(
+            self,
+            self.expect(LexemeType::RBrace)?,
+            ParseErrors::BlockNotClosed
+        );
+        let span = Span::from_to(start, self.last_span);
+        Ok(Success(Spanned::new(block, span)))
     }
 
     fn parse_type(&mut self) -> Return<Type> {
@@ -293,7 +318,7 @@ impl<'a> Parser<'a> {
                     if let LexemeType::RParen = lexeme.spanned {
                         let lexeme_after = self.lexemes.get(idx + 1).ok_or_else(|| {
                             SdwErr::from_pos(
-                                ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoFnBodyStub)),
+                                ParseErrors::TkStackEmptyDiag(Box::new(ParseErrors::NoFnBodyStub)),
                                 self.last_span,
                             )
                         })?;
@@ -304,7 +329,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let stub = stub.ok_or(SdwErr::from_pos(
-                    ParseErrors::TkStackEmpty(Box::new(ParseErrors::NoFnBodyStub)),
+                    ParseErrors::TkStackEmptyDiag(Box::new(ParseErrors::NoFnBodyStub)),
                     self.last_span,
                 ))?;
 
@@ -364,17 +389,7 @@ impl<'a> Parser<'a> {
                 //                                   ^ [^^^^] ^
                 let mut body = None;
                 if !stub {
-                    attempt!(
-                        self,
-                        self.expect(LexemeType::LBrace)?,
-                        ParseErrors::BlockNotOpened
-                    );
-                    body = Some(Box::new(self.parse()?));
-                    attempt!(
-                        self,
-                        self.expect(LexemeType::RBrace)?,
-                        ParseErrors::BlockNotClosed
-                    );
+                    body = Some(Box::new(attempt!(self.parse_block_braces()?)));
                 }
 
                 // fn int addTwo(int arg1, int arg2) { [body] };
@@ -416,7 +431,7 @@ impl<'a> Parser<'a> {
                     self.expect(LexemeType::LBrace)?,
                     ParseErrors::BlockNotOpened
                 );
-                let block = Box::new(self.parse()?);
+                let block = Box::new(self.parse_block()?);
                 attempt!(
                     self,
                     self.expect(LexemeType::RBrace)?,
@@ -643,19 +658,10 @@ impl<'a> Parser<'a> {
         Ok(Success(left))
     }
 
-    /*
-    _EXPR           ->
-                        if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
-                        GLOBIDN |\
-                        [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
-    */
-
     fn nud(&mut self) -> Return<Expr> {
         let start = self.next_span()?;
         Ok(Success(match self.next()?.spanned {
-            #[rustfmt::skip]
             LexemeType::Intlit(il) => Spanned::new(Expr::IntLiteral(il), start),
-            #[rustfmt::skip]
             LexemeType::BoolLit(bl) => Spanned::new(Expr::BoolLiteral(bl), start),
             LexemeType::Cross => {
                 let expr = attempt!(self.parse_expr()?);
@@ -666,6 +672,21 @@ impl<'a> Parser<'a> {
                 let expr = attempt!(self.parse_expr()?);
                 let span = Span::from_to(start, expr.span);
                 Spanned::new(Expr::UnaryNeg(Box::new(expr)), span)
+            }
+            LexemeType::Bang => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::UnaryNot(Box::new(expr)), span)
+            }
+            LexemeType::Amp => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::Referal(Box::new(expr)), span)
+            }
+            LexemeType::Ast => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::Indir(Box::new(expr)), span)
             }
             LexemeType::LParen => {
                 let expr = attempt!(self.parse_expr()?);
@@ -679,6 +700,8 @@ impl<'a> Parser<'a> {
             }
             LexemeType::Idn(name) => match self.peek()?.spanned {
                 LexemeType::LParen => {
+                    self.next().unwrap(); // consume the parenthesis
+                    let name = Spanned::new(name, start);
                     let mut args = Vec::new();
                     if self.peek()?.spanned != LexemeType::RParen {
                         while self.peek()?.spanned != LexemeType::RParen {
@@ -703,14 +726,107 @@ impl<'a> Parser<'a> {
                     );
                     Spanned::new(Expr::FnCall(name, args), span)
                 }
+                LexemeType::Period => {
+                    self.next().unwrap(); // consume the period
+                    let name = Spanned::new(name, start);
+                    let end = self.next_span()?;
+                    let member = attempt!(self, self.consume_idn()?, ParseErrors::NoMemberName);
+                    let span = Span::from_to(start, end);
+                    Spanned::new(Expr::ObjMember(name, member), span)
+                }
                 _ => Spanned::new(Expr::Variable(name), start),
             },
-            _ => todo!(),
+            LexemeType::If => {
+                // TODO: try removing the `()` dependency for conditions.
+                //       issue: how do we disambuiguiate blocks & conditionals??
+                attempt!(
+                    self,
+                    self.expect(LexemeType::LParen)?,
+                    ParseErrors::CondAmbigious
+                );
+                let condition = Box::new(attempt!(self.parse_expr()?));
+                attempt!(
+                    self,
+                    self.expect(LexemeType::RParen)?,
+                    ParseErrors::CondAmbigious
+                );
+                // TODO: this is an expression that literally won't work cause
+                //       blocks can't parse expressions yet lol
+                let then = attempt!(self.parse_block_braces()?);
+
+                let mut elifs = Vec::new();
+                let mut r#else = None;
+                while self.peek()?.spanned == LexemeType::Else {
+                    if self.peek()?.spanned == LexemeType::If {
+                        attempt!(
+                            self,
+                            self.expect(LexemeType::LParen)?,
+                            ParseErrors::CondAmbigious
+                        );
+                        let condition = Box::new(attempt!(self.parse_expr()?));
+                        attempt!(
+                            self,
+                            self.expect(LexemeType::RParen)?,
+                            ParseErrors::CondAmbigious
+                        );
+
+                        let then = attempt!(self.parse_block_braces()?);
+                        elifs.push((condition, then));
+                        continue;
+                    }
+
+                    r#else = Some(attempt!(self.parse_block_braces()?));
+                    break;
+                }
+
+                let span = Span::from_to(start, self.last_span);
+                Spanned::new(
+                    Expr::Cond {
+                        condition,
+                        then,
+                        elifs,
+                        r#else,
+                    },
+                    span,
+                )
+            }
+            LexemeType::LBrace => todo!("blocks"),
+            _ => unimplemented!("error here"),
         }))
     }
 
-    fn led(&mut self, _left: Spanned<Expr>) -> Return<Expr> {
-        todo!()
+    fn led(&mut self, left: Spanned<Expr>) -> Return<Expr> {
+        let next = self.next()?;
+        let biop = match (&next.spanned, self.peek()?.spanned) {
+            // the most specific patterns (2 lexemes) must come first.
+            (LexemeType::RAng, LexemeType::RAng) => BiOps::BitRshift,
+            (LexemeType::LAng, LexemeType::LAng) => BiOps::BitLShift,
+            (LexemeType::Bar, LexemeType::Bar) => BiOps::LogOr,
+            (LexemeType::Amp, LexemeType::Amp) => BiOps::LogAnd,
+            (LexemeType::Equals, LexemeType::Equals) => BiOps::Eq,
+            (LexemeType::Bang, LexemeType::Equals) => BiOps::NEq,
+            (LexemeType::RAng, LexemeType::Equals) => BiOps::GrEq,
+            (LexemeType::LAng, LexemeType::Equals) => BiOps::LsEq,
+            (LexemeType::RAng, _) => BiOps::Gr,
+            (LexemeType::LAng, _) => BiOps::Ls,
+            (LexemeType::Cross, _) => BiOps::Add,
+            (LexemeType::Dash, _) => BiOps::Sub,
+            (LexemeType::Ast, _) => BiOps::Mul,
+            (LexemeType::FSlash, _) => BiOps::Div,
+            (LexemeType::Perc, _) => BiOps::Mod,
+            (LexemeType::Bar, _) => BiOps::BitOr,
+            (LexemeType::Amp, _) => BiOps::BitAnd,
+            (LexemeType::Tilde, _) => BiOps::BitNot,
+            (LexemeType::Caret, _) => BiOps::BitXor,
+            (uk, _) => attempt!(self, Fail, ParseErrors::UnknownOperator(uk.clone())),
+        };
+
+        let right = attempt!(self.parse_expr_rbp(next.spanned.prec())?);
+        let span = Span::from_to(left.span, right.span);
+        Ok(Success(Spanned::new(
+            Expr::BiOp(Box::new(left), biop, Box::new(right)),
+            span,
+        )))
     }
 }
 
@@ -718,6 +834,7 @@ impl LexemeType {
     fn prec(&self) -> usize {
         match self {
             LexemeType::Cross | LexemeType::Dash => 5,
+            LexemeType::Ast | LexemeType::FSlash => 10,
             _ => 0,
         }
     }
@@ -725,5 +842,5 @@ impl LexemeType {
 
 pub fn parse(state: &mut State, lexemes: Vec<Lexeme>) -> Result<Block> {
     let mut parser = Parser::new(lexemes, state);
-    parser.parse()
+    parser.parse_block()
 }

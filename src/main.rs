@@ -28,8 +28,8 @@ mod print {
         }};
     }
 
-    fn ste(_ident: usize, _expr: &Expr) {
-        todo!()
+    fn ste(_ident: usize, expr: &Expr) {
+        println!("\n{:#?}\n", expr);
     }
 
     fn stb(ident: usize, bound: &Bound) {
@@ -113,7 +113,7 @@ mod print {
                 }
 
                 print_idn!(ident + 1, "body:");
-                syntax_tree_ident(ident + 2, &body);
+                syntax_tree_ident(ident + 2, &body.spanned);
             }
             Stmt::Stub {
                 return_type,

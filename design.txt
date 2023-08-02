@@ -372,7 +372,7 @@ so *this is not at all exhaustive*. once the language becomes more ratified, i m
 
 ```syntax
 IDN             ->  [_ | a-z | a-Z][_ | a-z | A-Z | 0-9]?*
-GLOBIDN         ->  [[[IDN:]-1?]IDN] | IDN
+PATH         ->  [[[IDN:]-1?]IDN] | IDN
 
 EXPR            ->  [EXPR | EXPR;]
 _EXPR           ->  [_EXPR + _EXPR] | [_EXPR - _EXPR] | [_EXPR * _EXPR] | [_EXPR / _EXPR] | [_EXPR % _EXPR] |\
@@ -382,9 +382,9 @@ _EXPR           ->  [_EXPR + _EXPR] | [_EXPR - _EXPR] | [_EXPR * _EXPR] | [_EXPR
                     [&_EXPR] | [*_EXPR] |\
                     { EXPR* } | (_EXPR) |\
                     IDN.IDN |\
-                    GLOBIDN([IDN[,-1?]]?*) |\
+                    PATH([IDN[,-1?]]?*) |\
                     if _EXPR BLOCK [else if _EXPR BLOCK]?* [else BLOCK]? |\
-                    GLOBIDN |\
+                    PATH |\
                     [#\[IDN [a-z | A-Z | 0-9]?*\] _EXPR]
 
 TYPE            ->  IDN | &IDN

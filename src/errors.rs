@@ -1,4 +1,4 @@
-use crate::common::Span;
+use crate::{common::Span, prelude::LexemeType};
 use owo_colors::OwoColorize;
 use thiserror::Error;
 
@@ -199,9 +199,15 @@ pub enum ParseErrors {
 
     #[error("subexpr not closed - expected a closing paren (`)`)")]
     SubExprNotClosed,
+    #[error("conditional's condition is ambigious - surround it with parenthese (`()`)")]
+    CondAmbigious,
+    #[error("unkown operator - {0:?}")]
+    UnknownOperator(LexemeType),
 
+    #[error("reached the end of the token stack")]
+    TkStackEmpty,
     #[error("reached the end of the token stack; {0}")]
-    TkStackEmpty(Box<ParseErrors>),
+    TkStackEmptyDiag(Box<ParseErrors>),
     #[error("expected an identifier")]
     ExpectedIdn,
     #[error("could not determine the next location in the source file")]

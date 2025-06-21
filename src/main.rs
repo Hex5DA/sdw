@@ -28,8 +28,102 @@ mod print {
         }};
     }
 
-    fn ste(_ident: usize, expr: &Expr) {
-        println!("\n{:#?}\n", expr);
+    fn calc(expr: &Expr) -> i64 {
+        match expr {
+            Expr::IntLiteral(int) => *int,
+            Expr::BoolLiteral(bool) => *bool as i64,
+            Expr::BiOp(op1, biop, op2) => {
+                let op1 = calc(&op1.spanned);
+                let op2 = calc(&op2.spanned);
+                match biop {
+                    BiOps::Add => op1 + op2,
+                    BiOps::Sub => op1 - op2,
+                    BiOps::Mul => op1 * op2,
+                    BiOps::Div => op1 / op2,
+                    BiOps::Mod => op1 % op2,
+                    BiOps::BitOr => op1 | op2,
+                    BiOps::BitAnd => op1 & op2,
+                    BiOps::BitXor => op1 ^ op2,
+                    BiOps::BitRshift => op1 >> op2,
+                    BiOps::BitLShift => op1 << op2,
+                    BiOps::LogOr => (op1 != 0 || op2 != 0) as i64,
+                    BiOps::LogAnd => (op1 != 0 && op2 != 0) as i64,
+                    BiOps::Eq => (op1 == op2) as i64,
+                    BiOps::NEq => (op1 != op2) as i64,
+                    BiOps::Gr => (op1 > op2) as i64,
+                    BiOps::Ls => (op1 < op2) as i64,
+                    BiOps::GrEq => (op1 >= op2) as i64,
+                    BiOps::LsEq => (op1 <= op2) as i64,
+                }
+            }
+            Expr::SubExpr(expr) => calc(&expr.spanned),
+            _ => 0,
+        }
+    }
+
+    fn ste(ident: usize, expr: &Expr) {
+        // TO TEST: modulo
+        print_idn!(ident, "[DBG] {}", calc(expr));
+
+        match expr {
+            Expr::IntLiteral(int) => print_idn!(ident, "int literal -> {}", int),
+            Expr::BoolLiteral(bool) => print_idn!(ident, "boolean literal -> {}", bool),
+            Expr::BiOp(op1, biop, op2) => {
+                print_idn!(ident, "bi-operand expression:");
+                print_idn!(
+                    ident + 1,
+                    "operation -> {}",
+                    match biop {
+                        BiOps::Add => "addition",
+                        BiOps::Sub => "subtraction",
+                        BiOps::Mul => "multiplication",
+                        BiOps::Div => "division",
+                        BiOps::Mod => "modulus",
+                        BiOps::BitOr => "bitwise OR",
+                        BiOps::BitAnd => "bitwise AND",
+                        // BiOps::BitNot => "bitwise NOT",
+                        BiOps::BitXor => "bitwise XOR",
+                        BiOps::BitRshift => "bitwise right shift",
+                        BiOps::BitLShift => "bitwise left shift",
+                        BiOps::LogOr => "logical OR",
+                        BiOps::LogAnd => "logical AND",
+                        BiOps::Eq => "equal to",
+                        BiOps::NEq => "not equal to",
+                        BiOps::Gr => "greater than",
+                        BiOps::Ls => "less than",
+                        BiOps::GrEq => "greater than or equal to",
+                        BiOps::LsEq => "less than or equal to",
+                    }
+                );
+
+                print_idn!(ident + 1, "first operand:");
+                ste(ident + 2, &op1.spanned);
+                print_idn!(ident + 1, "second operand:");
+                ste(ident + 2, &op2.spanned);
+            },
+            Expr::Cond { condition, then, elifs, r#else } => {
+                print_idn!(ident, "conditional expression:");
+                print_idn!(ident + 1, "condition:");
+                ste(ident + 1, &condition.spanned);
+                print_idn!(ident + 1, "then-case:");
+                syntax_tree_ident(ident + 2, &then.spanned);
+                print_idn!(ident + 1, "no. else-ifs -> {}", elifs.len());
+
+                for elif in elifs {
+                    print_idn!(ident + 1, "else-if:");
+                    print_idn!(ident + 2, "condition:");
+                    ste(ident + 3, &elif.0.spanned);
+                    print_idn!(ident + 2, "then-case:");
+                    syntax_tree_ident(ident + 3, &elif.1.spanned);
+                }
+            
+                if let Some(r#else) = r#else {
+                    print_idn!(ident + 1, "else case:");
+                    syntax_tree_ident(ident + 2, &r#else.spanned);
+                }
+            }
+            _ => todo!(),
+        }
     }
 
     fn stb(ident: usize, bound: &Bound) {
@@ -167,7 +261,7 @@ mod print {
                 print_idn!(ident + 1, "name -> {}", name.spanned);
                 stb(ident + 1, &bound.spanned);
             }
-            Stmt::Discard { .. } => todo!()
+            Stmt::Discard { .. } => todo!(),
         }
     }
 
@@ -263,6 +357,7 @@ fn main() {
 
     println!();
     if args.verbose {
+        println!("ST RAW: {:?}", st);
         print::syntax_tree(&st);
         println!();
     }

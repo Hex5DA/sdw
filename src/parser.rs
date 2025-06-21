@@ -29,6 +29,7 @@ pub mod prelude {
 
 // TODO: directives (needs rethinking conceptually?)
 // TODO: `struct` / `union` initialisation syntax
+// TODO: discard statements
 
 // TODO: some of the codebase will need retrofitting to work with these
 #[allow(dead_code)]
@@ -71,7 +72,8 @@ pub enum Expr {
     IntLiteral(i64),
     BoolLiteral(bool),
     Variable(String),
-    UnaryNot(ExprSelf),
+    UnaryBitNot(ExprSelf),
+    UnaryLogNot(ExprSelf),
     UnaryNeg(ExprSelf),
     UnaryPos(ExprSelf),
     SubExpr(ExprSelf),
@@ -117,13 +119,11 @@ pub enum BiOps {
     Mod,
     BitOr,
     BitAnd,
-    BitNot,
     BitXor,
     BitRshift,
     BitLShift,
     LogOr,
     LogAnd,
-    LogNot,
     Eq,
     NEq,
     Gr,
@@ -676,7 +676,7 @@ impl<'a> Parser<'a> {
             LexemeType::Bang => {
                 let expr = attempt!(self.parse_expr()?);
                 let span = Span::from_to(start, expr.span);
-                Spanned::new(Expr::UnaryNot(Box::new(expr)), span)
+                Spanned::new(Expr::UnaryLogNot(Box::new(expr)), span)
             }
             LexemeType::Amp => {
                 let expr = attempt!(self.parse_expr()?);
@@ -687,6 +687,11 @@ impl<'a> Parser<'a> {
                 let expr = attempt!(self.parse_expr()?);
                 let span = Span::from_to(start, expr.span);
                 Spanned::new(Expr::Indir(Box::new(expr)), span)
+            }
+            LexemeType::Tilde => {
+                let expr = attempt!(self.parse_expr()?);
+                let span = Span::from_to(start, expr.span);
+                Spanned::new(Expr::UnaryBitNot(Box::new(expr)), span)
             }
             LexemeType::LParen => {
                 let expr = attempt!(self.parse_expr()?);
@@ -780,6 +785,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let span = Span::from_to(start, self.last_span);
+                println!("if AAAA");
                 Spanned::new(
                     Expr::Cond {
                         condition,
@@ -791,7 +797,7 @@ impl<'a> Parser<'a> {
                 )
             }
             LexemeType::LBrace => todo!("blocks"),
-            _ => unimplemented!("error here"),
+            uk => unimplemented!("error here: {uk:?}"),
         }))
     }
 
@@ -816,7 +822,6 @@ impl<'a> Parser<'a> {
             (LexemeType::Perc, _) => BiOps::Mod,
             (LexemeType::Bar, _) => BiOps::BitOr,
             (LexemeType::Amp, _) => BiOps::BitAnd,
-            (LexemeType::Tilde, _) => BiOps::BitNot,
             (LexemeType::Caret, _) => BiOps::BitXor,
             (uk, _) => attempt!(self, Fail, ParseErrors::UnknownOperator(uk.clone())),
         };
@@ -831,10 +836,24 @@ impl<'a> Parser<'a> {
 }
 
 impl LexemeType {
+    // TODO:
+    // how do we seperate out bilength operators?
+    // at lex time? <- TODO: do this
+    // eg. `<` & `<=`, `&` & `&&`
     fn prec(&self) -> usize {
         match self {
-            LexemeType::Cross | LexemeType::Dash => 5,
-            LexemeType::Ast | LexemeType::FSlash => 10,
+            // function call, variable access, object member access
+            // TODO: object literal expressions should go here too :)
+            LexemeType::Idn(_) => 11,
+            LexemeType::Ast | LexemeType::FSlash | LexemeType::Perc => 8,
+            LexemeType::Cross | LexemeType::Dash => 7,
+            LexemeType::LAng | LexemeType::RAng => 6,
+            LexemeType::Bang | LexemeType::Equals => 5,
+            LexemeType::Amp => 4,
+            LexemeType::Caret => 3,
+            LexemeType::Bar => 2,
+            // logical and, logical or (see TODO)
+            LexemeType::If => 1,
             _ => 0,
         }
     }

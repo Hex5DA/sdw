@@ -1,0 +1,28 @@
+  == GENERIC PARSER ==
+
+define a grammar in a `.gram` file
+the file is made up of declarations & instructions
+instructions tell the library which parser to invoke on the following declarations
+eg. a lexer, pratt parser, recursive descent parser..
+
+ex. `sdw.gram`
+```
+lexer:
+IDN = [_ | a-Z][_ | a-Z | 0-9]
+GOTO = "goto"
+FN = "fn"
+CROSS = "+"
+LET = "let"
+EQ = "="
+SEMI = ";"
+...
+
+pratt:
+ADD = $EXPR $CROSS $EXPR
+EXPR = $ADD | ...
+
+recdesc:
+VARDEC = $LET $IDN $EQ $EXPR $SEMI
+```
+
+or smth idk man
